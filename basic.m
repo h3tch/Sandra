@@ -36,12 +36,8 @@ function basic
     stdShade = cell2mat(cellfun(@(t) nanstd(table2array(t(:,startColumn:end))), ...
         selectedTShade, 'uniform', 0));
     
-    httest = cell2mat(cellfun(@(u,h) ttest2(table2array(u(:,startColumn:end)),table2array(h(:,startColumn:end))), ...
-        selectedTSun, selectedTShade, 'uniform', 0));
-    
-    httest = array2table(httest);
-    httest.Properties.VariableNames = T.Properties.VariableNames(startColumn:end);
-    httest.Properties.RowNames = cellstr(selectedSp);
+    [h,p] = cellfun(@(u,h) ttest2(table2array(u(:,startColumn:end)),table2array(h(:,startColumn:end))), ...
+        selectedTSun, selectedTShade, 'uniform', 0);
     
     idx = (1:size(meanSun,2)) * 2 - 1;
     vars = T.Properties.VariableNames(startColumn:end);
@@ -67,7 +63,16 @@ function basic
     num.Properties.VariableNames(idx) = cellfun(@(i) ['num_sun_',i], vars, 'uniform', 0);
     num.Properties.VariableNames(idx + 1) = cellfun(@(i) ['num_shade_',i], vars, 'uniform', 0);
     
-    summary = [mu, sd, num];
+    p = cell2mat(p);
+    p = array2table(p);
+    p.Properties.VariableNames = cellfun(@(i) ['p_',i], vars, 'uniform', 0);
+    
+    h = cell2mat(h);
+    h = array2table(h);
+    h.Properties.VariableNames = cellfun(@(i) ['h_',i], vars, 'uniform', 0);
+    
+    summary = [mu, sd, num, p, h];
+    writetable(summary, 'summary.xlsx');
     
 end
 
