@@ -1,11 +1,12 @@
 function basic
 
-    T = importfile('data_2017.03.01.csv');
+    T = importfile('data.csv');
     T.sp = categorical(T.sp);
     T.sun_shade = categorical(T.sun_shade);
     
     uniqueSp = unique(T.sp);
     
+    U = arrayfun(@(sp) T(T.sp == sp,:), uniqueSp, 'uniform', 0);
     TSun = arrayfun(@(sp) T(T.sp == sp & T.sun_shade == 'sonne',:), ...
         uniqueSp, 'uniform', 0);
     TShade = arrayfun(@(sp) T(T.sp == sp & T.sun_shade == 'schatten',:), ...
@@ -16,8 +17,17 @@ function basic
     
     sel = countSun > 3 & countShade > 3;
     selectedSp = uniqueSp(sel);
+    selectedT = vertcat(U{sel});
     selectedTSun = TSun(sel);
     selectedTShade = TShade(sel);
+    
+    lm = fitlm(selectedT, 'SLA ~ sp * sun_shade');
+    av = anova(lm);
+    
+    [~,~,stats] = anovan(selectedT.SLA,{selectedT.sp, selectedT.sun_shade}, ...
+        'model','interaction',...
+        'varnames',{'species','sun/shade'});
+    multcompare(stats);
     
     startColumn = 17;
     
