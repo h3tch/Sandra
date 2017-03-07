@@ -4,7 +4,14 @@ function basic
     T.sp = categorical(T.sp);
     T.sun_shade = categorical(T.sun_shade);
     
+   %% SELECTE SUB TABLES
+    
     uniqueSp = unique(T.sp);
+    
+    vars = {'Blattdicke_mm', 'Chlorophyll', 'Reissfestigkeit_N', ...
+        'DW_FW', 'SLA', 'Stomatadichte', 'd15N14N', 'd13C12C', ...
+        'N', 'C', 'PARsat', 'ETR_1500'};
+    varSel = ismember(T.Properties.VariableNames, vars);
     
     U = arrayfun(@(sp) T(T.sp == sp,:), uniqueSp, 'uniform', 0);
     TSun = arrayfun(@(sp) T(T.sp == sp & T.sun_shade == 'sonne',:), ...
@@ -16,48 +23,29 @@ function basic
     [countShade,~] = cellfun(@size, TShade);
     
     sel = countSun > 3 & countShade > 3;
-    selectedSp = uniqueSp(sel);
     selectedT = vertcat(U{sel});
+    selectedSp = uniqueSp(sel);
     selectedTSun = TSun(sel);
     selectedTShade = TShade(sel);
     
-    startColumn = 17;
-    vars = T.Properties.VariableNames(startColumn:end);
+    %% PERFORM TTEST
     
-    % perform ANOVA per trait
-    AV = cellfun(@(trait) anova(fitlm(selectedT, [trait ' ~ sp * sun_shade'])), ...
-        vars, 'uniform', 0);
-    
-    for i = 1:numel(AV)
-        trait = vars{i};
-        AV{i}.Properties.RowNames = cellfun(@(name) [trait '-' name], ...
-            AV{i}.Properties.RowNames, 'uniform', 0); 
-    end
-    
-    AV = AV';
-    AV = vertcat(AV{:});
-    
-%     selectedT = selectedT(not(isnan(selectedT.SLA)), :);
-%     [~,~,stats] = anovan(selectedT.SLA,{selectedT.sp, selectedT.sun_shade}, ...
-%         'model','interaction', 'varnames',{'sp','sun_shade'});
-%     multcompare(stats);
-    
-    nSun = cell2mat(cellfun(@(t) sum(~isnan(table2array(t(:,startColumn:end)))), ...
+    nSun = cell2mat(cellfun(@(t) sum(~isnan(table2array(t(:,varSel)))), ...
         selectedTSun, 'uniform', 0));
-    nShade = cell2mat(cellfun(@(t) sum(~isnan(table2array(t(:,startColumn:end)))), ...
+    nShade = cell2mat(cellfun(@(t) sum(~isnan(table2array(t(:,varSel)))), ...
         selectedTShade, 'uniform', 0));
     
-    meanSun = cell2mat(cellfun(@(t) nanmean(table2array(t(:,startColumn:end))), ...
+    meanSun = cell2mat(cellfun(@(t) nanmean(table2array(t(:,varSel))), ...
         selectedTSun, 'uniform', 0));
-    meanShade = cell2mat(cellfun(@(t) nanmean(table2array(t(:,startColumn:end))), ...
+    meanShade = cell2mat(cellfun(@(t) nanmean(table2array(t(:,varSel))), ...
         selectedTShade, 'uniform', 0));
     
-    stdSun = cell2mat(cellfun(@(t) nanstd(table2array(t(:,startColumn:end))), ...
+    stdSun = cell2mat(cellfun(@(t) nanstd(table2array(t(:,varSel))), ...
         selectedTSun, 'uniform', 0));
-    stdShade = cell2mat(cellfun(@(t) nanstd(table2array(t(:,startColumn:end))), ...
+    stdShade = cell2mat(cellfun(@(t) nanstd(table2array(t(:,varSel))), ...
         selectedTShade, 'uniform', 0));
     
-    [h,p] = cellfun(@(u,h) ttest2(table2array(u(:,startColumn:end)),table2array(h(:,startColumn:end))), ...
+    [h,p] = cellfun(@(u,h) ttest2(table2array(u(:,varSel)),table2array(h(:,varSel))), ...
         selectedTSun, selectedTShade, 'uniform', 0);
     
     idx = (1:size(meanSun,2)) * 2 - 1;
@@ -91,8 +79,22 @@ function basic
     h = array2table(h);
     h.Properties.VariableNames = cellfun(@(i) ['h_',i], vars, 'uniform', 0);
     
-    summary = [mu, sd, num, p, h];
+    summary = [array2table(selectedSp), mu, sd, num, p, h];
     writetable(summary, 'summary.xlsx');
+    
+    %% PERFORM ANOVA per trait
+    
+    AV = cellfun(@(trait) anova(fitlm(selectedT, [trait ' ~ sp * sun_shade'])), ...
+        vars, 'uniform', 0);
+    
+    for i = 1:numel(AV)
+        trait = vars{i};
+        AV{i}.Properties.RowNames = cellfun(@(name) [trait '-' name], ...
+            AV{i}.Properties.RowNames, 'uniform', 0); 
+    end
+    
+    AV = AV';
+    AV = vertcat(AV{:});
     
     AV = [cell2table(AV.Properties.RowNames) AV];
     writetable(AV, 'anova.xlsx');
