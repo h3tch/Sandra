@@ -21,15 +21,26 @@ function basic
     selectedTSun = TSun(sel);
     selectedTShade = TShade(sel);
     
-    lm = fitlm(selectedT, 'SLA ~ sp * sun_shade');
-    av = anova(lm);
-    
-    [~,~,stats] = anovan(selectedT.SLA,{selectedT.sp, selectedT.sun_shade}, ...
-        'model','interaction',...
-        'varnames',{'species','sun/shade'});
-    multcompare(stats);
-    
     startColumn = 17;
+    vars = T.Properties.VariableNames(startColumn:end);
+    
+    % perform ANOVA per trait
+    AV = cellfun(@(trait) anova(fitlm(selectedT, [trait ' ~ sp * sun_shade'])), ...
+        vars, 'uniform', 0);
+    
+    for i = 1:numel(AV)
+        trait = vars{i};
+        AV{i}.Properties.RowNames = cellfun(@(name) [trait '-' name], ...
+            AV{i}.Properties.RowNames, 'uniform', 0); 
+    end
+    
+    AV = AV';
+    AV = vertcat(AV{:});
+    
+%     selectedT = selectedT(not(isnan(selectedT.SLA)), :);
+%     [~,~,stats] = anovan(selectedT.SLA,{selectedT.sp, selectedT.sun_shade}, ...
+%         'model','interaction', 'varnames',{'sp','sun_shade'});
+%     multcompare(stats);
     
     nSun = cell2mat(cellfun(@(t) sum(~isnan(table2array(t(:,startColumn:end)))), ...
         selectedTSun, 'uniform', 0));
@@ -50,7 +61,6 @@ function basic
         selectedTSun, selectedTShade, 'uniform', 0);
     
     idx = (1:size(meanSun,2)) * 2 - 1;
-    vars = T.Properties.VariableNames(startColumn:end);
     
     mu = zeros(size(meanSun) .* [1 2]);
     mu(:,idx) = meanSun;
@@ -83,6 +93,9 @@ function basic
     
     summary = [mu, sd, num, p, h];
     writetable(summary, 'summary.xlsx');
+    
+    AV = [cell2table(AV.Properties.RowNames) AV];
+    writetable(AV, 'anova.xlsx');
     
 end
 
