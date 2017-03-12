@@ -28,6 +28,14 @@ function basic
     selectedTSun = TSun(sel);
     selectedTShade = TShade(sel);
     
+    selTSun = vertcat(selectedTSun{:});
+    selTShade = vertcat(selectedTShade{:});
+    
+    %% SCATTER PLOT MATRIX
+    
+    plotandsavematrix(selTSun(:,vars), 'scattermatrix_sun', [1000 1000]);
+    plotandsavematrix(selTShade(:,vars), 'scattermatrix_shade', [1000 1000]);
+    
     %% PERFORM TTEST
     
     nSun = cell2mat(cellfun(@(t) sum(~isnan(table2array(t(:,varSel)))), ...
@@ -101,3 +109,29 @@ function basic
     
 end
 
+function plotandsavematrix(T, filename, pagesize)
+    [~,AX] = plotmatrix(table2array(T));
+    vars = T.Properties.VariableNames;
+    [Y,X] = meshgrid(1:numel(vars));
+    for xy = [X(:) Y(:)]'
+        x = xy(1);
+        y = xy(2);
+        if x ~= y
+            h = lsline(AX(x,y));
+            set(h(1),'color','r');
+        end
+        if y == 1
+            xlabel(AX(y,x),vars{x}, 'Interpreter', 'none', 'FontSize', 8);
+            set(AX(y,x),'xaxislocation','top');
+        end
+        if x == numel(vars)
+            ylabel(AX(y,x),vars{y}, 'Interpreter', 'none', 'FontSize', 8);
+            set(AX(y,x),'yaxislocation','right');
+        end
+    end
+    
+    fig = gcf;
+    fig.PaperUnits = 'points';
+    fig.PaperPosition = [0 0 pagesize];
+    print(gcf, filename,'-dpdf','-r0');
+end
