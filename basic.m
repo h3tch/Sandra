@@ -4,7 +4,12 @@ function basic
     T.sp = categorical(T.sp);
     T.sun_shade = categorical(T.sun_shade);
     
-   %% SELECTE SUB TABLES
+    %% SPECIFY OUTPUT FOLDERS
+    
+    scatter_dir = '../fig/scatter/';
+    stat_dir = '../stat/';
+    
+    %% SELECTE SUB TABLES
     
     uniqueSp = unique(T.sp);
     
@@ -31,10 +36,22 @@ function basic
     selTSun = vertcat(selectedTSun{:});
     selTShade = vertcat(selectedTShade{:});
     
+    %% SCATTER PLOT COMPARISONS
+    
+    nameX = 'SLA';
+    nameY = 'Blattdicke_mm';
+    scatterCompare(...
+        table2array(selTSun(:,nameX)), table2array(selTSun(:,nameY)), ...
+        table2array(selTShade(:,nameX)), table2array(selTShade(:,nameY)),...
+        nameX, nameY);
+    saveFigure([scatter_dir nameX '-' nameY], [400 400], '-dsvg');
+    
     %% SCATTER PLOT MATRIX
     
-    plotandsavematrix(selTSun(:,vars), 'scattermatrix_sun', [1000 1000]);
-    plotandsavematrix(selTShade(:,vars), 'scattermatrix_shade', [1000 1000]);
+    plotandsavematrix(selTSun(:,vars));
+    saveFigure([scatter_dir 'scattermatrix_sun'], [1000 1000], '-dpdf');
+    plotandsavematrix(selTShade(:,vars));
+    saveFigure([scatter_dir 'scattermatrix_shade'], [1000 1000], '-dpdf');
     
     %% PERFORM TTEST
     
@@ -88,7 +105,7 @@ function basic
     h.Properties.VariableNames = cellfun(@(i) ['h_',i], vars, 'uniform', 0);
     
     summary = [array2table(selectedSp), mu, sd, num, p, h];
-    writetable(summary, 'summary.xlsx');
+    writetable(summary, [stat_dir 'mean_std_ttest.xlsx']);
     
     %% PERFORM ANOVA per trait
     
@@ -105,11 +122,38 @@ function basic
     AV = vertcat(AV{:});
     
     AV = [cell2table(AV.Properties.RowNames) AV];
-    writetable(AV, 'anova.xlsx');
+    writetable(AV, [stat_dir 'anova.xlsx']);
     
 end
 
-function plotandsavematrix(T, filename, pagesize)
+function scatterCompare(X1, Y1, X2, Y2, nameX, nameY)
+    circle_size = 13;
+    font_size = 10;
+    ALL = [X1 Y1; X2 Y2];
+    MIN = min(ALL);
+    MAX = max(ALL);
+    border = (MAX - MIN) .* 0.05;
+
+    figure;
+    hold on;
+    scatter(X1,Y1,circle_size,[113 183 53]./255,'filled');
+    ax = gca;
+    lsline(ax);
+    scatter(X2,Y2,circle_size,[1 103 52]./255,'filled');
+    h = lsline(ax);
+    set(h(1),'color','r');
+    set(h(2),'color','r');
+    xlim([MIN(1)-border(1) MAX(1)+border(1)]);
+    ylim([MIN(2)-border(2) MAX(2)+border(2)]);
+    
+    xlabel(nameX, 'Interpreter', 'none', 'FontSize', font_size);
+    ylabel(nameY, 'Interpreter', 'none', 'FontSize', font_size);
+    box on;
+    
+    hold off;
+end
+
+function plotandsavematrix(T)
     [~,AX] = plotmatrix(table2array(T));
     vars = T.Properties.VariableNames;
     [Y,X] = meshgrid(1:numel(vars));
@@ -130,8 +174,11 @@ function plotandsavematrix(T, filename, pagesize)
         end
     end
     
+end
+
+function saveFigure(filename, pagesize, format)
     fig = gcf;
     fig.PaperUnits = 'points';
     fig.PaperPosition = [0 0 pagesize];
-    print(gcf, filename,'-dpdf','-r0');
+    print(gcf, filename,format,'-r0');
 end
