@@ -36,94 +36,123 @@ function basic
     selTSun = vertcat(selectedTSun{:});
     selTShade = vertcat(selectedTShade{:});
     
+    %% PEARSON CORRELATION COEFFICIENTS
+    
+    if 1
+        TSun = table2array(selTSun(:,vars));
+        [X,Y] = meshgrid(1:numel(vars));
+        [RSun,PSun] = arrayfun(@(x,y) corr(TSun(:,x),TSun(:,y), 'rows', 'complete'), X, Y);
+        TShade = table2array(selTShade(:,vars));
+        [RShade,PShade] = arrayfun(@(x,y) corr(TShade(:,x),TShade(:,y), 'rows', 'complete'), X, Y);
+        CorrSun = RSun;
+        TF = triu(ones(size(PSun))) == 1;
+        CorrSun(TF) = PSun(TF);
+        CorrSun = addnames(array2table(CorrSun), vars);
+        CorrShade = RShade;
+        CorrShade(TF) = PShade(TF);
+        CorrShade = addnames(array2table(CorrShade), vars);
+        writetable(CorrSun, [stat_dir 'Corr.xlsx'], 'WriteRowNames',true, 'Sheet', 'Sun');
+        writetable(CorrShade, [stat_dir 'Corr.xlsx'], 'WriteRowNames',true, 'Sheet', 'Shade');
+        return
+    end
+    
     %% SCATTER PLOT COMPARISONS
     
-    nameX = 'SLA';
-    nameY = 'Blattdicke_mm';
-    scatterCompare(...
-        table2array(selTSun(:,nameX)), table2array(selTSun(:,nameY)), ...
-        table2array(selTShade(:,nameX)), table2array(selTShade(:,nameY)),...
-        nameX, nameY);
-    saveFigure([scatter_dir nameX '-' nameY], [400 400], '-dsvg');
+    if 1
+        pvalue = 0.05;
+        saveAllSignificantCorr(TSun, TShade, PSun, vars, pvalue, scatter_dir, '-sun');
+        saveAllSignificantCorr(TSun, TShade, PShade, vars, pvalue, scatter_dir, '-shade');
+        close all;
+    end
     
     %% SCATTER PLOT MATRIX
     
-    plotandsavematrix(selTSun(:,vars));
-    saveFigure([scatter_dir 'scattermatrix_sun'], [1000 1000], '-dpdf');
-    plotandsavematrix(selTShade(:,vars));
-    saveFigure([scatter_dir 'scattermatrix_shade'], [1000 1000], '-dpdf');
+    if 0
+        plotandsavematrix(selTSun(:,vars));
+        saveFigure([scatter_dir 'scattermatrix_sun'], [1000 1000], '-dpdf');
+        plotandsavematrix(selTShade(:,vars));
+        saveFigure([scatter_dir 'scattermatrix_shade'], [1000 1000], '-dpdf');
+    end
     
     %% PERFORM TTEST
     
-    nSun = cell2mat(cellfun(@(t) sum(~isnan(table2array(t(:,varSel)))), ...
-        selectedTSun, 'uniform', 0));
-    nShade = cell2mat(cellfun(@(t) sum(~isnan(table2array(t(:,varSel)))), ...
-        selectedTShade, 'uniform', 0));
-    
-    meanSun = cell2mat(cellfun(@(t) nanmean(table2array(t(:,varSel))), ...
-        selectedTSun, 'uniform', 0));
-    meanShade = cell2mat(cellfun(@(t) nanmean(table2array(t(:,varSel))), ...
-        selectedTShade, 'uniform', 0));
-    
-    stdSun = cell2mat(cellfun(@(t) nanstd(table2array(t(:,varSel))), ...
-        selectedTSun, 'uniform', 0));
-    stdShade = cell2mat(cellfun(@(t) nanstd(table2array(t(:,varSel))), ...
-        selectedTShade, 'uniform', 0));
-    
-    [h,p] = cellfun(@(u,h) ttest2(table2array(u(:,varSel)),table2array(h(:,varSel))), ...
-        selectedTSun, selectedTShade, 'uniform', 0);
-    
-    idx = (1:size(meanSun,2)) * 2 - 1;
-    
-    mu = zeros(size(meanSun) .* [1 2]);
-    mu(:,idx) = meanSun;
-    mu(:,idx + 1) = meanShade;
-    mu = array2table(mu);
-    mu.Properties.VariableNames(idx) = cellfun(@(i) ['mu_sun_',i], vars, 'uniform', 0);
-    mu.Properties.VariableNames(idx + 1) = cellfun(@(i) ['mu_shade_',i], vars, 'uniform', 0);
-    
-    sd = zeros(size(stdSun) .* [1 2]);
-    sd(:,idx) = stdSun;
-    sd(:,idx + 1) = stdShade;
-    sd = array2table(sd);
-    sd.Properties.VariableNames(idx) = cellfun(@(i) ['sd_sun_',i], vars, 'uniform', 0);
-    sd.Properties.VariableNames(idx + 1) = cellfun(@(i) ['sd_shade_',i], vars, 'uniform', 0);
-    
-    num = zeros(size(stdSun) .* [1 2]);
-    num(:,idx) = nSun;
-    num(:,idx + 1) = nShade;
-    num = array2table(num);
-    num.Properties.VariableNames(idx) = cellfun(@(i) ['num_sun_',i], vars, 'uniform', 0);
-    num.Properties.VariableNames(idx + 1) = cellfun(@(i) ['num_shade_',i], vars, 'uniform', 0);
-    
-    p = cell2mat(p);
-    p = array2table(p);
-    p.Properties.VariableNames = cellfun(@(i) ['p_',i], vars, 'uniform', 0);
-    
-    h = cell2mat(h);
-    h = array2table(h);
-    h.Properties.VariableNames = cellfun(@(i) ['h_',i], vars, 'uniform', 0);
-    
-    summary = [array2table(selectedSp), mu, sd, num, p, h];
-    writetable(summary, [stat_dir 'mean_std_ttest.xlsx']);
+    if 0
+        nSun = cell2mat(cellfun(@(t) sum(~isnan(table2array(t(:,varSel)))), ...
+            selectedTSun, 'uniform', 0));
+        nShade = cell2mat(cellfun(@(t) sum(~isnan(table2array(t(:,varSel)))), ...
+            selectedTShade, 'uniform', 0));
+
+        meanSun = cell2mat(cellfun(@(t) nanmean(table2array(t(:,varSel))), ...
+            selectedTSun, 'uniform', 0));
+        meanShade = cell2mat(cellfun(@(t) nanmean(table2array(t(:,varSel))), ...
+            selectedTShade, 'uniform', 0));
+
+        stdSun = cell2mat(cellfun(@(t) nanstd(table2array(t(:,varSel))), ...
+            selectedTSun, 'uniform', 0));
+        stdShade = cell2mat(cellfun(@(t) nanstd(table2array(t(:,varSel))), ...
+            selectedTShade, 'uniform', 0));
+
+        [h,p] = cellfun(@(u,h) ttest2(table2array(u(:,varSel)),table2array(h(:,varSel))), ...
+            selectedTSun, selectedTShade, 'uniform', 0);
+
+        idx = (1:size(meanSun,2)) * 2 - 1;
+
+        mu = zeros(size(meanSun) .* [1 2]);
+        mu(:,idx) = meanSun;
+        mu(:,idx + 1) = meanShade;
+        mu = array2table(mu);
+        mu.Properties.VariableNames(idx) = cellfun(@(i) ['mu_sun_',i], vars, 'uniform', 0);
+        mu.Properties.VariableNames(idx + 1) = cellfun(@(i) ['mu_shade_',i], vars, 'uniform', 0);
+
+        sd = zeros(size(stdSun) .* [1 2]);
+        sd(:,idx) = stdSun;
+        sd(:,idx + 1) = stdShade;
+        sd = array2table(sd);
+        sd.Properties.VariableNames(idx) = cellfun(@(i) ['sd_sun_',i], vars, 'uniform', 0);
+        sd.Properties.VariableNames(idx + 1) = cellfun(@(i) ['sd_shade_',i], vars, 'uniform', 0);
+
+        num = zeros(size(stdSun) .* [1 2]);
+        num(:,idx) = nSun;
+        num(:,idx + 1) = nShade;
+        num = array2table(num);
+        num.Properties.VariableNames(idx) = cellfun(@(i) ['num_sun_',i], vars, 'uniform', 0);
+        num.Properties.VariableNames(idx + 1) = cellfun(@(i) ['num_shade_',i], vars, 'uniform', 0);
+
+        p = cell2mat(p);
+        p = array2table(p);
+        p.Properties.VariableNames = cellfun(@(i) ['p_',i], vars, 'uniform', 0);
+
+        h = cell2mat(h);
+        h = array2table(h);
+        h.Properties.VariableNames = cellfun(@(i) ['h_',i], vars, 'uniform', 0);
+
+        %summary = [array2table(selectedSp), mu, sd, num, p, h];
+        writetable(summary, [stat_dir 'mean_std_ttest.xlsx'], 'WriteRowNames',true);
+    end
     
     %% PERFORM ANOVA per trait
     
-    AV = cellfun(@(trait) anova(fitlm(selectedT, [trait ' ~ sp * sun_shade'])), ...
-        vars, 'uniform', 0);
-    
-    for i = 1:numel(AV)
-        trait = vars{i};
-        AV{i}.Properties.RowNames = cellfun(@(name) [trait '-' name], ...
-            AV{i}.Properties.RowNames, 'uniform', 0); 
+    if 0
+        AV = cellfun(@(trait) anova(fitlm(selectedT, [trait ' ~ sp * sun_shade'])), ...
+            vars, 'uniform', 0);
+
+        for i = 1:numel(AV)
+            trait = vars{i};
+            AV{i}.Properties.RowNames = cellfun(@(name) [trait '-' name], ...
+                AV{i}.Properties.RowNames, 'uniform', 0); 
+        end
+
+        AV = AV';
+        AV = vertcat(AV{:});
+
+        %AV = [cell2table(AV.Properties.RowNames) AV];
+        writetable(AV, [stat_dir 'anova.xlsx'], 'WriteRowNames',true);
     end
-    
-    AV = AV';
-    AV = vertcat(AV{:});
-    
-    AV = [cell2table(AV.Properties.RowNames) AV];
-    writetable(AV, [stat_dir 'anova.xlsx']);
-    
+end
+
+function T = addnames(T, names)
+    T.Properties.VariableNames = names;
+    T.Properties.RowNames = names;
 end
 
 function scatterCompare(X1, Y1, X2, Y2, nameX, nameY)
@@ -181,4 +210,17 @@ function saveFigure(filename, pagesize, format)
     fig.PaperUnits = 'points';
     fig.PaperPosition = [0 0 pagesize];
     print(gcf, filename,format,'-r0');
+end
+
+function saveAllSignificantCorr(TSun, TShade, PMatrix, ellNames, pvalue, dir, postfix)
+    [X,Y] = find(PMatrix < pvalue & triu(ones(size(PMatrix)),1));
+    for i = [X Y]'
+        nameX = ellNames{i(1)};
+        nameY = ellNames{i(2)};
+        scatterCompare(...
+            TSun(:,i(1)), TSun(:,i(2)), ...
+            TShade(:,i(1)), TShade(:,i(2)),...
+            nameX, nameY);
+        saveFigure([dir nameX '-' nameY postfix], [400 400], '-dsvg');
+    end
 end
