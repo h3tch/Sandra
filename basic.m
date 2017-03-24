@@ -33,17 +33,26 @@ function basic
     selectedTSun = TSun(sel);
     selectedTShade = TShade(sel);
     
+    meanTSun = cellfun(@(X) nanmean(table2array(X(:,vars))), selectedTSun, 'uniform', 0);
+    meanTShade = cellfun(@(X) nanmean(table2array(X(:,vars))), selectedTShade, 'uniform', 0);
+    meanTSun = vertcat(meanTSun{:});
+    meanTShade = vertcat(meanTShade{:});
+    
     selTSun = vertcat(selectedTSun{:});
     selTShade = vertcat(selectedTShade{:});
     
     %% PEARSON CORRELATION COEFFICIENTS
     
     if 1
-        TSun = table2array(selTSun(:,vars));
+%         TSun = table2array(selTSun(:,vars));
+        TSun = meanTSun;
         [X,Y] = meshgrid(1:numel(vars));
         [RSun,PSun] = arrayfun(@(x,y) corr(TSun(:,x),TSun(:,y), 'rows', 'complete'), X, Y);
-        TShade = table2array(selTShade(:,vars));
+        
+%         TShade = table2array(selTShade(:,vars));
+        TShade = meanTShade;
         [RShade,PShade] = arrayfun(@(x,y) corr(TShade(:,x),TShade(:,y), 'rows', 'complete'), X, Y);
+        
         CorrSun = RSun;
         TF = triu(ones(size(PSun))) == 1;
         CorrSun(TF) = PSun(TF);
@@ -53,15 +62,16 @@ function basic
         CorrShade = addnames(array2table(CorrShade), vars);
         writetable(CorrSun, [stat_dir 'Corr.xlsx'], 'WriteRowNames',true, 'Sheet', 'Sun');
         writetable(CorrShade, [stat_dir 'Corr.xlsx'], 'WriteRowNames',true, 'Sheet', 'Shade');
-        return
     end
     
     %% SCATTER PLOT COMPARISONS
     
     if 1
+%         TSunSp = selTSun(:,'sp');
+%         TShadeSp = selTShade(:,'sp');
+        
         pvalue = 0.05;
-        saveAllSignificantCorr(TSun, TShade, PSun, vars, pvalue, scatter_dir, '-sun');
-        saveAllSignificantCorr(TSun, TShade, PShade, vars, pvalue, scatter_dir, '-shade');
+        saveAllSignificantCorr(TSun, [], TShade, [], CorrSun, CorrShade, pvalue, scatter_dir);
         close all;
     end
     
@@ -155,29 +165,43 @@ function T = addnames(T, names)
     T.Properties.RowNames = names;
 end
 
-function scatterCompare(X1, Y1, X2, Y2, nameX, nameY)
-    circle_size = 13;
+function scatterCompare(X1, Y1, G1, p1, r1, X2, Y2, G2, p2, r2, nameX, nameY, pvalue)
+    circle_size = 20;
     font_size = 10;
     ALL = [X1 Y1; X2 Y2];
     MIN = min(ALL);
     MAX = max(ALL);
     border = (MAX - MIN) .* 0.05;
+    
+    color1 = [113 183 53];
+    color2 = [1 103 52];
 
     figure;
     hold on;
-    scatter(X1,Y1,circle_size,[113 183 53]./255,'filled');
+    scatter(X1,Y1,circle_size,min(color1./255,1),'filled');
+    scatter(X2,Y2,circle_size,min(color2./255,1),'filled');
     ax = gca;
-    lsline(ax);
-    scatter(X2,Y2,circle_size,[1 103 52]./255,'filled');
     h = lsline(ax);
-    set(h(1),'color','r');
-    set(h(2),'color','r');
+    set(h(1),'color',min(color2./255,1));
+    if p1 > pvalue
+        set(h(1),'linestyle','--');
+    end
+    set(h(2),'color',min(color1./255,1));
+    if p2 > pvalue
+        set(h(2),'linestyle','--');
+    end
+    %scatter(MX1,MY1,circle_size,min(color1./255,1),'filled');
+    %scatter(MX2,MY2,circle_size,min(color2./255,1),'filled');
     xlim([MIN(1)-border(1) MAX(1)+border(1)]);
     ylim([MIN(2)-border(2) MAX(2)+border(2)]);
     
     xlabel(nameX, 'Interpreter', 'none', 'FontSize', font_size);
     ylabel(nameY, 'Interpreter', 'none', 'FontSize', font_size);
     box on;
+    
+    legend('Sun', 'Shade', ...
+           ['r = ' num2str(r1) '  p = ' num2str(p1)], ...
+           ['r = ' num2str(r2) '  p = ' num2str(p2)]);
     
     hold off;
 end
@@ -212,15 +236,17 @@ function saveFigure(filename, pagesize, format)
     print(gcf, filename,format,'-r0');
 end
 
-function saveAllSignificantCorr(TSun, TShade, PMatrix, ellNames, pvalue, dir, postfix)
-    [X,Y] = find(PMatrix < pvalue & triu(ones(size(PMatrix)),1));
+function saveAllSignificantCorr(TSun, TSunSp, TShade, TShadeSp, CorrSun, CorrShade, pvalue, dir)
+    [Y,X] = find(triu(ones(size(CorrSun)),1));
+    CSun = table2array(CorrSun);
+    CShade = table2array(CorrShade);
     for i = [X Y]'
-        nameX = ellNames{i(1)};
-        nameY = ellNames{i(2)};
+        nameX = CorrSun.Properties.VariableNames{i(1)};
+        nameY = CorrSun.Properties.RowNames{i(2)};
         scatterCompare(...
-            TSun(:,i(1)), TSun(:,i(2)), ...
-            TShade(:,i(1)), TShade(:,i(2)),...
-            nameX, nameY);
-        saveFigure([dir nameX '-' nameY postfix], [400 400], '-dsvg');
+            TSun(:,i(1)), TSun(:,i(2)), TSunSp, CSun(i(2), i(1)), CSun(i(1),i(2)), ...
+            TShade(:,i(1)), TShade(:,i(2)), TShadeSp, CShade(i(2), i(1)), CShade(i(1),i(2)), ...
+            nameX, nameY, pvalue);
+        saveFigure([dir nameX '-' nameY], [400 400], '-dsvg');
     end
 end
