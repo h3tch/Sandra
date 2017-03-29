@@ -6,8 +6,12 @@ function basic
     
     %% SPECIFY OUTPUT FOLDERS
     
+    barplot_dir = '../fig/bar/';
     scatter_dir = '../fig/scatter/';
     stat_dir = '../stat/';
+    global dark_green light_green
+    dark_green = [113 183 53]./255;
+    light_green = [1 103 52]./255;
     
     %% SELECTE SUB TABLES
     
@@ -16,6 +20,10 @@ function basic
     vars = {'Blattdicke_mm', 'Chlorophyll', 'Reissfestigkeit_N', ...
         'DW_FW', 'SLA', 'Stomatadichte', 'd15N14N', 'd13C12C', ...
         'N', 'C', 'PARsat', 'ETR_1500'};
+    names = {'Blattdicke ($mm$)', 'Chlorophyll (SPAD)', 'Reissfestigkeit ($N$)', ...
+        'LDMC ($mm^2~mg^{-1}$)', 'SLA  ($mm^2~mg^{-1}$)', 'Stomatadichte ($n/mm^2$)', ...
+        '$d~15N/14N$', '$d~13C/12C$', 'N ($\%$)', 'C ($\%$)', 'PARsat', ...
+        'ETR1500 ($\mu$mol $m^{-2}~s^{-1}$)'};
     varSel = ismember(T.Properties.VariableNames, vars);
     
     U = arrayfun(@(sp) T(T.sp == sp,:), uniqueSp, 'uniform', 0);
@@ -43,7 +51,7 @@ function basic
     
     %% PEARSON CORRELATION COEFFICIENTS
     
-    if 1
+    if 0
 %         TSun = table2array(selTSun(:,vars));
         TSun = meanTSun;
         [X,Y] = meshgrid(1:numel(vars));
@@ -56,17 +64,17 @@ function basic
         CorrSun = RSun;
         TF = triu(ones(size(PSun))) == 1;
         CorrSun(TF) = PSun(TF);
-        CorrSun = addnames(array2table(CorrSun), vars);
+        CorrSun = addnames(array2table(CorrSun), names, vars);
         CorrShade = RShade;
         CorrShade(TF) = PShade(TF);
-        CorrShade = addnames(array2table(CorrShade), vars);
+        CorrShade = addnames(array2table(CorrShade), names, vars);
         writetable(CorrSun, [stat_dir 'Corr.xlsx'], 'WriteRowNames',true, 'Sheet', 'Sun');
         writetable(CorrShade, [stat_dir 'Corr.xlsx'], 'WriteRowNames',true, 'Sheet', 'Shade');
     end
     
     %% SCATTER PLOT COMPARISONS
     
-    if 1
+    if 0
 %         TSunSp = selTSun(:,'sp');
 %         TShadeSp = selTShade(:,'sp');
         
@@ -78,15 +86,17 @@ function basic
     %% SCATTER PLOT MATRIX
     
     if 0
-        plotandsavematrix(selTSun(:,vars));
+        plotandsavematrix(selTSun(:,vars), names);
         saveFigure([scatter_dir 'scattermatrix_sun'], [1000 1000], '-dpdf');
-        plotandsavematrix(selTShade(:,vars));
+        plotandsavematrix(selTShade(:,vars), names);
         saveFigure([scatter_dir 'scattermatrix_shade'], [1000 1000], '-dpdf');
+        
+        close all
     end
     
     %% PERFORM TTEST
     
-    if 0
+    if 1
         nSun = cell2mat(cellfun(@(t) sum(~isnan(table2array(t(:,varSel)))), ...
             selectedTSun, 'uniform', 0));
         nShade = cell2mat(cellfun(@(t) sum(~isnan(table2array(t(:,varSel)))), ...
@@ -101,6 +111,13 @@ function basic
             selectedTSun, 'uniform', 0));
         stdShade = cell2mat(cellfun(@(t) nanstd(table2array(t(:,varSel))), ...
             selectedTShade, 'uniform', 0));
+        
+        for i = 1:size(meanSun,2)
+            errbarplot([meanSun(:,i) meanShade(:,i)], ...
+                [stdSun(:,i) stdShade(:,i)], ...
+                names{i}, char(selectedSp));
+            saveFigure([barplot_dir vars{i}], [600 400], '-dsvg');
+        end
 
         [h,p] = cellfun(@(u,h) ttest2(table2array(u(:,varSel)),table2array(h(:,varSel))), ...
             selectedTSun, selectedTShade, 'uniform', 0);
@@ -136,8 +153,10 @@ function basic
         h = array2table(h);
         h.Properties.VariableNames = cellfun(@(i) ['h_',i], vars, 'uniform', 0);
 
-        %summary = [array2table(selectedSp), mu, sd, num, p, h];
+        summary = [array2table(selectedSp), mu, sd, num, p, h];
         writetable(summary, [stat_dir 'mean_std_ttest.xlsx'], 'WriteRowNames',true);
+        
+        close all
     end
     
     %% PERFORM ANOVA per trait
@@ -160,8 +179,8 @@ function basic
     end
 end
 
-function T = addnames(T, names)
-    T.Properties.VariableNames = names;
+function T = addnames(T, names, vars)
+    T.Properties.VariableNames = vars;
     T.Properties.RowNames = names;
 end
 
@@ -173,20 +192,19 @@ function scatterCompare(X1, Y1, G1, p1, r1, X2, Y2, G2, p2, r2, nameX, nameY, pv
     MAX = max(ALL);
     border = (MAX - MIN) .* 0.05;
     
-    color1 = [113 183 53];
-    color2 = [1 103 52];
+    global dark_green light_green
 
     figure;
     hold on;
-    scatter(X1,Y1,circle_size,min(color1./255,1),'filled');
-    scatter(X2,Y2,circle_size,min(color2./255,1),'filled');
+    scatter(X1,Y1,circle_size,min(dark_green,1),'filled');
+    scatter(X2,Y2,circle_size,min(light_green,1),'filled');
     ax = gca;
     h = lsline(ax);
-    set(h(1),'color',min(color2./255,1));
+    set(h(1),'color',min(light_green,1));
     if p1 > pvalue
         set(h(1),'linestyle','--');
     end
-    set(h(2),'color',min(color1./255,1));
+    set(h(2),'color',min(dark_green,1));
     if p2 > pvalue
         set(h(2),'linestyle','--');
     end
@@ -195,8 +213,8 @@ function scatterCompare(X1, Y1, G1, p1, r1, X2, Y2, G2, p2, r2, nameX, nameY, pv
     xlim([MIN(1)-border(1) MAX(1)+border(1)]);
     ylim([MIN(2)-border(2) MAX(2)+border(2)]);
     
-    xlabel(nameX, 'Interpreter', 'none', 'FontSize', font_size);
-    ylabel(nameY, 'Interpreter', 'none', 'FontSize', font_size);
+    xlabel(nameX, 'FontSize', font_size, 'interpreter','latex');
+    ylabel(nameY, 'FontSize', font_size, 'interpreter','latex');
     box on;
     
     legend('Sun', 'Shade', ...
@@ -206,9 +224,12 @@ function scatterCompare(X1, Y1, G1, p1, r1, X2, Y2, G2, p2, r2, nameX, nameY, pv
     hold off;
 end
 
-function plotandsavematrix(T)
+function plotandsavematrix(T, names)
     [~,AX] = plotmatrix(table2array(T));
     vars = T.Properties.VariableNames;
+    if nargin < 2
+        names = vars;
+    end
     [Y,X] = meshgrid(1:numel(vars));
     for xy = [X(:) Y(:)]'
         x = xy(1);
@@ -218,11 +239,11 @@ function plotandsavematrix(T)
             set(h(1),'color','r');
         end
         if y == 1
-            xlabel(AX(y,x),vars{x}, 'Interpreter', 'none', 'FontSize', 8);
+            xlabel(AX(y,x),names{x}, 'Interpreter', 'latex', 'FontSize', 8);
             set(AX(y,x),'xaxislocation','top');
         end
         if x == numel(vars)
-            ylabel(AX(y,x),vars{y}, 'Interpreter', 'none', 'FontSize', 8);
+            ylabel(AX(y,x),names{y}, 'Interpreter', 'latex', 'FontSize', 8);
             set(AX(y,x),'yaxislocation','right');
         end
     end
@@ -241,12 +262,28 @@ function saveAllSignificantCorr(TSun, TSunSp, TShade, TShadeSp, CorrSun, CorrSha
     CSun = table2array(CorrSun);
     CShade = table2array(CorrShade);
     for i = [X Y]'
-        nameX = CorrSun.Properties.VariableNames{i(1)};
+        nameX = CorrSun.Properties.RowNames{i(1)};
         nameY = CorrSun.Properties.RowNames{i(2)};
+        varX = CorrSun.Properties.VariableNames{i(1)};
+        varY = CorrSun.Properties.VariableNames{i(2)};
         scatterCompare(...
             TSun(:,i(1)), TSun(:,i(2)), TSunSp, CSun(i(2), i(1)), CSun(i(1),i(2)), ...
             TShade(:,i(1)), TShade(:,i(2)), TShadeSp, CShade(i(2), i(1)), CShade(i(1),i(2)), ...
             nameX, nameY, pvalue);
-        saveFigure([dir nameX '-' nameY], [400 400], '-dsvg');
+        saveFigure([dir varX '-' varY], [400 400], '-dsvg');
     end
+end
+
+function errbarplot(mu, sd, figTitle, xLabels)
+    global light_green dark_green
+    figure;
+    hBar = barwitherr(sd, mu);
+    set(hBar(2), 'FaceColor', light_green);
+    set(hBar(1), 'FaceColor', dark_green);
+    title(figTitle, 'Interpreter', 'latex');
+    legend('Sun', 'Shade');
+    ax = gca;
+    ax.XTick = 1:numel(xLabels);
+    ax.XTickLabels = xLabels;
+    ax.XTickLabelRotation = 45;
 end
