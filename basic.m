@@ -96,7 +96,7 @@ function basic
     
     %% PERFORM TTEST
     
-    if 1
+    if 0
         nSun = cell2mat(cellfun(@(t) sum(~isnan(table2array(t(:,varSel)))), ...
             selectedTSun, 'uniform', 0));
         nShade = cell2mat(cellfun(@(t) sum(~isnan(table2array(t(:,varSel)))), ...
@@ -176,6 +176,34 @@ function basic
 
         %AV = [cell2table(AV.Properties.RowNames) AV];
         writetable(AV, [stat_dir 'anova.xlsx'], 'WriteRowNames',true);
+    end
+    
+    %% PERFORM ANCOVA
+    
+    if 1
+        pvalue = 0.05;
+        U = table2array(selectedT(:,vars));
+%         G = categorical(arrayfun(...
+%             @(a,b) [char(a) '-' char(b)], ...
+%             selectedT.sp, selectedT.sun_shade, 'uniform', 0));
+        G = selectedT.sun_shade;
+        
+        [X,Y] = meshgrid(1:numel(vars));
+%         TF = ~(X == Y);
+%         X = X(TF);
+%         Y = Y(TF);
+        [~,atab,ctab,stats] = arrayfun(...
+            @(x,y) aoctool(U(:,x),U(:,y),G,pvalue,vars{x},vars{y},'Group','off'), ...
+            X, Y, 'uniform', 0);
+        F = cellfun(@(a) a{4,5}, atab);
+        P = cellfun(@(a) a{4,6}, atab);
+        F = addnames(array2table(F), vars, vars);
+        P = addnames(array2table(P), vars, vars);
+        
+        writetable(F, [stat_dir 'ancova.xlsx'], 'WriteRowNames',true, 'Sheet', 'F');
+        writetable(P, [stat_dir 'ancova.xlsx'], 'WriteRowNames',true, 'Sheet', 'P');
+%         C = cellfun(@(s) multcompare(s, 'Display', 'off'), stats, 'uniform', 0);
+%         p = cellfun(@(c) c(end), C);
     end
 end
 
