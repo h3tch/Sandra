@@ -21,7 +21,7 @@ function basic
         'DW_FW', 'SLA', 'Stomatadichte', 'd15N14N', 'd13C12C', ...
         'N', 'C', 'PARsat', 'ETR_1500'};
     names = {'Blattdicke ($mm$)', 'Chlorophyll (SPAD)', 'Reissfestigkeit ($N$)', ...
-        'LDMC ($mm^2~mg^{-1}$)', 'SLA  ($mm^2~mg^{-1}$)', 'Stomatadichte ($n/mm^2$)', ...
+        'LDMC ($mg/g$)', 'SLA  ($mm^2/mg$)', 'Stomatadichte ($n/mm^2$)', ...
         '$d~15N/14N$', '$d~13C/12C$', 'N ($\%$)', 'C ($\%$)', 'PARsat', ...
         'ETR1500 ($\mu$mol $m^{-2}~s^{-1}$)'};
     varSel = ismember(T.Properties.VariableNames, vars);
@@ -51,7 +51,7 @@ function basic
     
     %% PEARSON CORRELATION COEFFICIENTS
     
-    if 0
+    if 1
 %         TSun = table2array(selTSun(:,vars));
         TSun = meanTSun;
         [X,Y] = meshgrid(1:numel(vars));
@@ -74,7 +74,7 @@ function basic
     
     %% SCATTER PLOT COMPARISONS
     
-    if 0
+    if 1
 %         TSunSp = selTSun(:,'sp');
 %         TShadeSp = selTShade(:,'sp');
         
@@ -111,16 +111,21 @@ function basic
             selectedTSun, 'uniform', 0));
         stdShade = cell2mat(cellfun(@(t) nanstd(table2array(t(:,varSel))), ...
             selectedTShade, 'uniform', 0));
+
+        [h,p] = cellfun(@(u,h) ttest2(table2array(u(:,varSel)),table2array(h(:,varSel))), ...
+            selectedTSun, selectedTShade, 'uniform', 0);
+        p = cell2mat(p);
+        labels = cell(size(p));
+        labels(p < 0.05) = {'\textbf{*}'};
+        labels(p < 0.01) = {'\textbf{**}'};
+        labels(p < 0.001) = {'\textbf{***}'};
         
         for i = 1:size(meanSun,2)
             errbarplot([meanSun(:,i) meanShade(:,i)], ...
                 [stdSun(:,i) stdShade(:,i)], ...
-                names{i}, char(selectedSp));
+                names{i}, arrayfun(@(sp,l) [l{1} '\textsf{' char(sp) '}'], selectedSp, labels(:,i), 'uniform', 0));
             saveFigure([barplot_dir vars{i}], [600 400], '-dsvg');
         end
-
-        [h,p] = cellfun(@(u,h) ttest2(table2array(u(:,varSel)),table2array(h(:,varSel))), ...
-            selectedTSun, selectedTShade, 'uniform', 0);
 
         idx = (1:size(meanSun,2)) * 2 - 1;
 
@@ -145,7 +150,6 @@ function basic
         num.Properties.VariableNames(idx) = cellfun(@(i) ['num_sun_',i], vars, 'uniform', 0);
         num.Properties.VariableNames(idx + 1) = cellfun(@(i) ['num_shade_',i], vars, 'uniform', 0);
 
-        p = cell2mat(p);
         p = array2table(p);
         p.Properties.VariableNames = cellfun(@(i) ['p_',i], vars, 'uniform', 0);
 
@@ -180,7 +184,7 @@ function basic
     
     %% PERFORM ANCOVA
     
-    if 1
+    if 0
         pvalue = 0.05;
         U = table2array(selectedT(:,vars));
 %         G = categorical(arrayfun(...
@@ -193,7 +197,7 @@ function basic
 %         X = X(TF);
 %         Y = Y(TF);
         [~,atab,ctab,stats] = arrayfun(...
-            @(x,y) aoctool(U(:,x),U(:,y),G,pvalue,vars{x},vars{y},'Group','off'), ...
+            @(x,y) aoctool(U(:,x),U(:,y),G,pvalue,vars{x},vars{y},'Sun/Shade','off'), ...
             X, Y, 'uniform', 0);
         F = cellfun(@(a) a{4,5}, atab);
         P = cellfun(@(a) a{4,6}, atab);
@@ -214,7 +218,7 @@ end
 
 function scatterCompare(X1, Y1, G1, p1, r1, X2, Y2, G2, p2, r2, nameX, nameY, pvalue)
     circle_size = 20;
-    font_size = 10;
+    font_size = 16;
     ALL = [X1 Y1; X2 Y2];
     MIN = min(ALL);
     MAX = max(ALL);
@@ -227,6 +231,7 @@ function scatterCompare(X1, Y1, G1, p1, r1, X2, Y2, G2, p2, r2, nameX, nameY, pv
     scatter(X1,Y1,circle_size,min(dark_green,1),'filled');
     scatter(X2,Y2,circle_size,min(light_green,1),'filled');
     ax = gca;
+    ax.TickLabelInterpreter = 'latex';
     h = lsline(ax);
     set(h(1),'color',min(light_green,1));
     if p1 > pvalue
@@ -246,8 +251,8 @@ function scatterCompare(X1, Y1, G1, p1, r1, X2, Y2, G2, p2, r2, nameX, nameY, pv
     box on;
     
     legend('Sun', 'Shade', ...
-           ['r = ' num2str(r1) '  p = ' num2str(p1)], ...
-           ['r = ' num2str(r2) '  p = ' num2str(p2)]);
+           ['r = ' num2str(r1,2) '  p = ' num2str(p1,2)], ...
+           ['r = ' num2str(r2,2) '  p = ' num2str(p2,2)]);
     
     hold off;
 end
@@ -302,16 +307,27 @@ function saveAllSignificantCorr(TSun, TSunSp, TShade, TShadeSp, CorrSun, CorrSha
     end
 end
 
-function errbarplot(mu, sd, figTitle, xLabels)
+function errbarplot(mu, sd, figTitle, xLabels, groupLabels)
     global light_green dark_green
     figure;
     hBar = barwitherr(sd, mu);
     set(hBar(2), 'FaceColor', light_green);
     set(hBar(1), 'FaceColor', dark_green);
-    title(figTitle, 'Interpreter', 'latex');
+    title(figTitle, 'Interpreter', 'latex', 'FontSize', 14);
     legend('Sun', 'Shade');
     ax = gca;
+    ax.XLim = [0.25 numel(xLabels)+0.75];
     ax.XTick = 1:numel(xLabels);
     ax.XTickLabels = xLabels;
     ax.XTickLabelRotation = 45;
+    ax.TickLabelInterpreter = 'latex';
+    mi = min(mu(:));
+    ma = max(mu(:));
+    d = ma - mi;
+    if d / max(abs([mi ma])) < 0.3
+        mi = min(mu(:) - sd(:));
+        ma = max(mu(:) + sd(:));
+        offset = (ma - mi)*0.2;
+        ax.YLim = [mi-offset ma+offset];
+    end
 end
