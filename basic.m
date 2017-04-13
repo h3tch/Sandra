@@ -15,15 +15,15 @@ function basic
     
     %% SELECTE SUB TABLES
     
-    uniqueSp = unique(T.sp);
+    [uniqueSp, uniqueIdx] = unique(T.sp);
     
     vars = {'Blattdicke_mm', 'Chlorophyll', 'Reissfestigkeit_N', ...
         'DW_FW', 'SLA', 'Stomatadichte', 'd15N14N', 'd13C12C', ...
-        'N', 'C', 'PARsat', 'ETR_1500'};
+        'N', 'C', 'PARsat', 'ETR_1500', 'Hzuwachs'};
     names = {'Blattdicke ($mm$)', 'Chlorophyll (SPAD)', 'Reissfestigkeit ($N$)', ...
         'LDMC ($mg/g$)', 'SLA  ($mm^2/mg$)', 'Stomatadichte ($n/mm^2$)', ...
         '$d~15N/14N$', '$d~13C/12C$', 'N ($\%$)', 'C ($\%$)', 'PARsat', ...
-        'ETR1500 ($\mu$mol $m^{-2}~s^{-1}$)'};
+        'ETR1500 ($\mu$mol $m^{-2}~s^{-1}$)', 'H\"ohenzuwachs ($cm/year$)'};
     varSel = ismember(T.Properties.VariableNames, vars);
     
     U = arrayfun(@(sp) T(T.sp == sp,:), uniqueSp, 'uniform', 0);
@@ -38,6 +38,10 @@ function basic
     sel = countSun > 3 & countShade > 3;
     selectedT = vertcat(U{sel});
     selectedSp = uniqueSp(sel);
+    selectedSpGroup = T.Group(uniqueIdx);
+    selectedSpGroup = selectedSpGroup(sel);
+    selectedSpHzuwachs = T.Hzuwachs(uniqueIdx);
+    selectedSpHzuwachs = selectedSpHzuwachs(sel);
     selectedTSun = TSun(sel);
     selectedTShade = TShade(sel);
     
@@ -51,7 +55,7 @@ function basic
     
     %% PEARSON CORRELATION COEFFICIENTS
     
-    if 1
+    if 0
 %         TSun = table2array(selTSun(:,vars));
         TSun = meanTSun;
         [X,Y] = meshgrid(1:numel(vars));
@@ -74,7 +78,7 @@ function basic
     
     %% SCATTER PLOT COMPARISONS
     
-    if 1
+    if 0
 %         TSunSp = selTSun(:,'sp');
 %         TShadeSp = selTShade(:,'sp');
         
@@ -96,7 +100,7 @@ function basic
     
     %% PERFORM TTEST
     
-    if 0
+    if 1
         nSun = cell2mat(cellfun(@(t) sum(~isnan(table2array(t(:,varSel)))), ...
             selectedTSun, 'uniform', 0));
         nShade = cell2mat(cellfun(@(t) sum(~isnan(table2array(t(:,varSel)))), ...
@@ -111,9 +115,19 @@ function basic
             selectedTSun, 'uniform', 0));
         stdShade = cell2mat(cellfun(@(t) nanstd(table2array(t(:,varSel))), ...
             selectedTShade, 'uniform', 0));
+        
+        % sort by group
+        [~,sortIdx] = sort(selectedSpGroup);
+        selectedSp = selectedSp(sortIdx);
+        meanSun = meanSun(sortIdx,:);
+        meanShade = meanShade(sortIdx,:);
+        stdSun = stdSun(sortIdx,:);
+        stdShade = stdShade(sortIdx,:);
+        nSun = nSun(sortIdx,:);
+        nShade = nShade(sortIdx,:);
 
         [h,p] = cellfun(@(u,h) ttest2(table2array(u(:,varSel)),table2array(h(:,varSel))), ...
-            selectedTSun, selectedTShade, 'uniform', 0);
+            selectedTSun(sortIdx), selectedTShade(sortIdx), 'uniform', 0);
         p = cell2mat(p);
         labels = cell(size(p));
         labels(p < 0.05) = {'\textbf{*}'};
@@ -165,7 +179,7 @@ function basic
     
     %% PERFORM ANOVA per trait
     
-    if 0
+    if 1
         AV = cellfun(@(trait) anova(fitlm(selectedT, [trait ' ~ sp * sun_shade'])), ...
             vars, 'uniform', 0);
 
@@ -184,7 +198,7 @@ function basic
     
     %% PERFORM ANCOVA
     
-    if 0
+    if 1
         pvalue = 0.05;
         U = table2array(selectedT(:,vars));
 %         G = categorical(arrayfun(...
@@ -196,7 +210,7 @@ function basic
 %         TF = ~(X == Y);
 %         X = X(TF);
 %         Y = Y(TF);
-        [~,atab,ctab,stats] = arrayfun(...
+        [~,atab,~,~] = arrayfun(...
             @(x,y) aoctool(U(:,x),U(:,y),G,pvalue,vars{x},vars{y},'Sun/Shade','off'), ...
             X, Y, 'uniform', 0);
         F = cellfun(@(a) a{4,5}, atab);
@@ -209,6 +223,11 @@ function basic
 %         C = cellfun(@(s) multcompare(s, 'Display', 'off'), stats, 'uniform', 0);
 %         p = cellfun(@(c) c(end), C);
     end
+end
+
+function B = sortmat(A, sortIdx)
+    B = A(:,sortIdx);
+    B = B(sortIdx,:);
 end
 
 function T = addnames(T, names, vars)
@@ -279,6 +298,7 @@ function plotandsavematrix(T, names)
             ylabel(AX(y,x),names{y}, 'Interpreter', 'latex', 'FontSize', 8);
             set(AX(y,x),'yaxislocation','right');
         end
+        AX(y,x).TickLabelInterpreter = 'latex';
     end
     
 end
