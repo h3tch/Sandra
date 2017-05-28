@@ -103,7 +103,7 @@ function basic
     
     %% PERFORM TTEST
     
-    if 0
+    if 1
         nSun = cell2mat(cellfun(@(t) sum(~isnan(table2array(t(:,varSel)))), ...
             selectedTSun, 'uniform', 0));
         nShade = cell2mat(cellfun(@(t) sum(~isnan(table2array(t(:,varSel)))), ...
@@ -120,7 +120,8 @@ function basic
             selectedTShade, 'uniform', 0));
         
         % sort by group
-        [~,sortIdx] = sort(selectedSpGroup);
+        sortIdx = 1:numel(selectedSpGroup);
+        %[~,sortIdx] = sort(selectedSpGroup);
         selectedSp = selectedSp(sortIdx);
         meanSun = meanSun(sortIdx,:);
         meanShade = meanShade(sortIdx,:);
@@ -182,7 +183,7 @@ function basic
     
     %% PERFORM ANOVA per trait
     
-    if 1
+    if 0
         AV = cellfun(@(trait) anova(fitlm(selectedT, [trait ' ~ sp * sun_shade'])), ...
             vars, 'uniform', 0);
 
@@ -205,7 +206,7 @@ function basic
     
     %% PERFORM ANCOVA
     
-    if 1
+    if 0
         pvalue = 0.05;
         U = table2array(selectedT(:,vars));
 %         G = categorical(arrayfun(...
