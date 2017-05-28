@@ -6,9 +6,12 @@ function basic
     
     %% SPECIFY OUTPUT FOLDERS
     
-    barplot_dir = '../fig/bar/';
-    scatter_dir = '../fig/scatter/';
-    stat_dir = '../stat/';
+    barplot_dir = 'fig/bar/';
+    scatter_dir = 'fig/scatter/';
+    stat_dir = 'stat/';
+    mkdir(stat_dir);
+    mkdir(barplot_dir);
+    mkdir(scatter_dir);
     global dark_green light_green
     dark_green = [113 183 53]./255;
     light_green = [1 103 52]./255;
@@ -45,8 +48,8 @@ function basic
     selectedTSun = TSun(sel);
     selectedTShade = TShade(sel);
     
-    meanTSun = cellfun(@(X) nanmean(table2array(X(:,vars))), selectedTSun, 'uniform', 0);
-    meanTShade = cellfun(@(X) nanmean(table2array(X(:,vars))), selectedTShade, 'uniform', 0);
+    meanTSun = cellfun(@(X) nanmean(table2array(X(:,vars)), 1), selectedTSun, 'uniform', 0);
+    meanTShade = cellfun(@(X) nanmean(table2array(X(:,vars)), 1), selectedTShade, 'uniform', 0);
     meanTSun = vertcat(meanTSun{:});
     meanTShade = vertcat(meanTShade{:});
     
@@ -100,7 +103,7 @@ function basic
     
     %% PERFORM TTEST
     
-    if 1
+    if 0
         nSun = cell2mat(cellfun(@(t) sum(~isnan(table2array(t(:,varSel)))), ...
             selectedTSun, 'uniform', 0));
         nShade = cell2mat(cellfun(@(t) sum(~isnan(table2array(t(:,varSel)))), ...
@@ -193,7 +196,11 @@ function basic
         AV = vertcat(AV{:});
 
         %AV = [cell2table(AV.Properties.RowNames) AV];
-        writetable(AV, [stat_dir 'anova.xlsx'], 'WriteRowNames',true);
+        try
+            writetable(AV, [stat_dir 'anova.xlsx'], 'WriteRowNames',true);
+        catch
+            warning('Could not save anova.xlsx.');
+        end
     end
     
     %% PERFORM ANCOVA
@@ -218,10 +225,24 @@ function basic
         F = addnames(array2table(F), vars, vars);
         P = addnames(array2table(P), vars, vars);
         
-        writetable(F, [stat_dir 'ancova.xlsx'], 'WriteRowNames',true, 'Sheet', 'F');
-        writetable(P, [stat_dir 'ancova.xlsx'], 'WriteRowNames',true, 'Sheet', 'P');
+        EYE = ~eye(size(atab));
+        [y,x] = find(EYE);
+        ancova_summary = cellfun(@(a) a(2:end, :), atab(EYE), 'uniform', 0);
+        ancova_rownames = arrayfun(@(i,j) repmat({[vars{i} '--' vars{j}]}, size(ancova_summary{1}, 1), 1), y, x, 'uniform', 0);
+        ancova_summary = vertcat(ancova_summary{:});
+        ancova_summary = cell2table(ancova_summary);
+        ancova_summary = [vertcat(ancova_rownames{:}) ancova_summary];
+        ancova_summary.Properties.VariableNames = {'Combination', 'Summary', 'DF', 'SumSQ', 'MeanSQ', 'F', 'pValue'};
+        
+        try
+            writetable(ancova_summary, [stat_dir 'ancova.xlsx']);
+            writetable(F, [stat_dir 'ancova.xlsx'], 'WriteRowNames',true, 'Sheet', 'F');
+            writetable(P, [stat_dir 'ancova.xlsx'], 'WriteRowNames',true, 'Sheet', 'P');
 %         C = cellfun(@(s) multcompare(s, 'Display', 'off'), stats, 'uniform', 0);
 %         p = cellfun(@(c) c(end), C);
+        catch ex
+            warning('Could not save ancova.xlsx.');
+        end
     end
 end
 
