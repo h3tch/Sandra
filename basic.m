@@ -3,6 +3,8 @@ function basic
     T = importfile('data.csv');
     T.sp = categorical(T.sp);
     T.sun_shade = categorical(T.sun_shade);
+    T.GroupHscon = categorical(T.GroupHscon);
+    T.HsconRang = max(T.HsconRang) - T.HsconRang;
     
     %% SPECIFY OUTPUT FOLDERS
     
@@ -13,8 +15,8 @@ function basic
     mkdir(barplot_dir);
     mkdir(scatter_dir);
     global dark_green light_green
-    dark_green = [113 183 53]./255;
-    light_green = [1 103 52]./255;
+    dark_green = [1 103 52]./255;
+    light_green = [113 183 53]./255;
     
     %% SELECTE SUB TABLES
     
@@ -39,10 +41,10 @@ function basic
     [countSun,~] = cellfun(@size, TSun);
     [countShade,~] = cellfun(@size, TShade);
     
-    sel = countSun >= 3 & countShade >= 3;
+    sel = countSun >= 0 & countShade >= 0;
     selectedT = vertcat(U{sel});
     selectedSp = uniqueSp(sel);
-    selectedSpGroup = T.Group(uniqueIdx);
+    selectedSpGroup = T.HsconRang(uniqueIdx);
     selectedSpGroup = selectedSpGroup(sel);
     selectedSpHzuwachs = T.Hzuwachs(uniqueIdx);
     selectedSpHzuwachs = selectedSpHzuwachs(sel);
@@ -59,7 +61,7 @@ function basic
     
     %% PEARSON CORRELATION COEFFICIENTS
     
-    if 0
+    if 1
 %         TSun = table2array(selTSun(:,vars));
         TSun = meanTSun;
         [X,Y] = meshgrid(1:numel(vars));
@@ -82,7 +84,7 @@ function basic
     
     %% SCATTER PLOT COMPARISONS
     
-    if 0
+    if 1
 %         TSunSp = selTSun(:,'sp');
 %         TShadeSp = selTShade(:,'sp');
         
@@ -121,8 +123,8 @@ function basic
             selectedTShade, 'uniform', 0));
         
         % sort by group
-        sortIdx = 1:numel(selectedSpGroup);
-        %[~,sortIdx] = sort(selectedSpGroup);
+        %sortIdx = 1:numel(selectedSpGroup);
+        [~,sortIdx] = sort(selectedSpGroup);
         selectedSp = selectedSp(sortIdx);
         meanSun = meanSun(sortIdx,:);
         meanShade = meanShade(sortIdx,:);
@@ -187,6 +189,10 @@ function basic
     if 0
         AV = cellfun(@(trait) anova(fitlm(selectedT, [trait ' ~ sp * sun_shade'])), ...
             vars, 'uniform', 0);
+        
+%         selectedT = selectedT(selectedT.GroupHscon ~= '', :);
+%         AV = cellfun(@(trait) anova(fitlm(selectedT, [trait ' ~ GroupHscon * sun_shade'])), ...
+%             vars, 'uniform', 0);
 
         for i = 1:numel(AV)
             trait = vars{i};
@@ -270,17 +276,18 @@ function scatterCompare(X1, Y1, G1, p1, r1, X2, Y2, G2, p2, r2, nameX, nameY, pv
 
     figure;
     hold on;
-    scatter(X1,Y1,circle_size,min(dark_green,1),'filled');
-    scatter(X2,Y2,circle_size,min(light_green,1),'filled');
+    scatter(X1,Y1,circle_size,min(light_green,1),'filled');
+    scatter(X2,Y2,circle_size,min(dark_green,1),'filled');
     ax = gca;
     ax.TickLabelInterpreter = 'latex';
     h = lsline(ax);
-    set(h(1),'color',min(light_green,1));
-    if p1 > pvalue
+    uistack(h(1), 'up');
+    set(h(1),'color',min(dark_green,1));
+    if p2 > pvalue
         set(h(1),'linestyle','--');
     end
-    set(h(2),'color',min(dark_green,1));
-    if p2 > pvalue
+    set(h(2),'color',min(light_green,1));
+    if p1 > pvalue
         set(h(2),'linestyle','--');
     end
     %scatter(MX1,MY1,circle_size,min(color1./255,1),'filled');
@@ -338,15 +345,21 @@ function saveAllSignificantCorr(TSun, TSunSp, TShade, TShadeSp, CorrSun, CorrSha
     CSun = table2array(CorrSun);
     CShade = table2array(CorrShade);
     for i = [X Y]'
-        nameX = CorrSun.Properties.RowNames{i(1)};
-        nameY = CorrSun.Properties.RowNames{i(2)};
-        varX = CorrSun.Properties.VariableNames{i(1)};
-        varY = CorrSun.Properties.VariableNames{i(2)};
-        scatterCompare(...
-            TSun(:,i(1)), TSun(:,i(2)), TSunSp, CSun(i(2), i(1)), CSun(i(1),i(2)), ...
-            TShade(:,i(1)), TShade(:,i(2)), TShadeSp, CShade(i(2), i(1)), CShade(i(1),i(2)), ...
-            nameX, nameY, pvalue);
-        saveFigure([dir varX '-' varY], [400 400], '-dsvg');
+        sun_p = CSun(i(2), i(1));
+        sun_r = CSun(i(1), i(2));
+        shade_p = CShade(i(2), i(1));
+        shade_r = CShade(i(1), i(2));
+        if sun_p <= pvalue || shade_p <= pvalue
+            nameX = CorrSun.Properties.RowNames{i(1)};
+            nameY = CorrSun.Properties.RowNames{i(2)};
+            varX = CorrSun.Properties.VariableNames{i(1)};
+            varY = CorrSun.Properties.VariableNames{i(2)};
+            scatterCompare(...
+                TSun(:,i(1)), TSun(:,i(2)), TSunSp, sun_p, sun_r, ...
+                TShade(:,i(1)), TShade(:,i(2)), TShadeSp, shade_p, shade_r, ...
+                nameX, nameY, pvalue);
+            saveFigure([dir varX '-' varY], [400 400], '-dsvg');
+        end
     end
 end
 
