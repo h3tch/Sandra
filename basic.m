@@ -1,4 +1,17 @@
-function basic
+function basic(do_correlation, do_scatter_plots, do_error_bars, do_anova)
+
+    if nargin < 1
+        do_correlation = false;
+    end
+    if nargin < 2
+        do_scatter_plots = false;
+    end
+    if nargin < 3
+        do_error_bars = true;
+    end
+    if nargin < 4
+        do_anova = false;
+    end
 
     T = importfile('data.csv');
     T.sp = categorical(T.sp);
@@ -14,7 +27,7 @@ function basic
     mkdir(stat_dir);
     mkdir(barplot_dir);
     mkdir(scatter_dir);
-    global dark_green light_green
+    global dark_green light_green vars names
     dark_green = [1 103 52]./255;
     light_green = [113 183 53]./255;
     
@@ -42,7 +55,7 @@ function basic
     [countShade,~] = cellfun(@size, TShade);
     
     sel = countSun >= 0 & countShade >= 0;
-    selectedT = vertcat(U{sel});
+    selectedT = restrict(T, 0, 0);
     selectedSp = uniqueSp(sel);
     selectedSpGroup = T.HsconRang(uniqueIdx);
     selectedSpGroup = selectedSpGroup(sel);
@@ -61,7 +74,7 @@ function basic
     
     %% PEARSON CORRELATION COEFFICIENTS
     
-    if 1
+    if do_correlation
 %         TSun = table2array(selTSun(:,vars));
         TSun = meanTSun;
         [X,Y] = meshgrid(1:numel(vars));
@@ -84,7 +97,7 @@ function basic
     
     %% SCATTER PLOT COMPARISONS
     
-    if 1
+    if do_scatter_plots
 %         TSunSp = selTSun(:,'sp');
 %         TShadeSp = selTShade(:,'sp');
         
@@ -95,120 +108,102 @@ function basic
     
     %% SCATTER PLOT MATRIX
     
-    if 0
-        plotandsavematrix(selTSun(:,vars), names);
-        saveFigure([scatter_dir 'scattermatrix_sun'], [1000 1000], '-dpdf');
-        plotandsavematrix(selTShade(:,vars), names);
-        saveFigure([scatter_dir 'scattermatrix_shade'], [1000 1000], '-dpdf');
-        
-        close all
-    end
+%     if 0
+%         plotandsavematrix(selTSun(:,vars), names);
+%         saveFigure([scatter_dir 'scattermatrix_sun'], [1000 1000], '-dpdf');
+%         plotandsavematrix(selTShade(:,vars), names);
+%         saveFigure([scatter_dir 'scattermatrix_shade'], [1000 1000], '-dpdf');
+%         
+%         close all
+%     end
     
     %% PERFORM TTEST
     
-    if 0
-        nSun = cell2mat(cellfun(@(t) sum(~isnan(table2array(t(:,varSel))), 1), ...
-            selectedTSun, 'uniform', 0));
-        nShade = cell2mat(cellfun(@(t) sum(~isnan(table2array(t(:,varSel))), 1), ...
-            selectedTShade, 'uniform', 0));
-
-        meanSun = cell2mat(cellfun(@(t) nanmean(table2array(t(:,varSel)), 1), ...
-            selectedTSun, 'uniform', 0));
-        meanShade = cell2mat(cellfun(@(t) nanmean(table2array(t(:,varSel)), 1), ...
-            selectedTShade, 'uniform', 0));
-
-        stdSun = cell2mat(cellfun(@(t) nanstd(table2array(t(:,varSel)), 0, 1), ...
-            selectedTSun, 'uniform', 0));
-        stdShade = cell2mat(cellfun(@(t) nanstd(table2array(t(:,varSel)), 0, 1), ...
-            selectedTShade, 'uniform', 0));
-        
-        % sort by group
-        %sortIdx = 1:numel(selectedSpGroup);
-        [~,sortIdx] = sort(selectedSpGroup);
-        selectedSp = selectedSp(sortIdx);
-        meanSun = meanSun(sortIdx,:);
-        meanShade = meanShade(sortIdx,:);
-        stdSun = stdSun(sortIdx,:);
-        stdShade = stdShade(sortIdx,:);
-        nSun = nSun(sortIdx,:);
-        nShade = nShade(sortIdx,:);
-
-        [h,p] = cellfun(@(u,h) ttest2(table2array(u(:,varSel)),table2array(h(:,varSel))), ...
-            selectedTSun(sortIdx), selectedTShade(sortIdx), 'uniform', 0);
-        p = cell2mat(p);
-        labels = cell(size(p));
-        labels(p < 0.05) = {'\textbf{*}'};
-        labels(p < 0.01) = {'\textbf{**}'};
-        labels(p < 0.001) = {'\textbf{***}'};
-        
-        for i = 1:size(meanSun,2)
-            errbarplot([meanSun(:,i) meanShade(:,i)], ...
-                [stdSun(:,i) stdShade(:,i)], ...
-                names{i}, arrayfun(@(sp,l) [l{1} '\textsf{' char(sp) '}'], selectedSp, labels(:,i), 'uniform', 0));
-            saveFigure([barplot_dir vars{i}], [600 400], '-dsvg');
-        end
-
-        idx = (1:size(meanSun,2)) * 2 - 1;
-
-        mu = zeros(size(meanSun) .* [1 2]);
-        mu(:,idx) = meanSun;
-        mu(:,idx + 1) = meanShade;
-        mu = array2table(mu);
-        mu.Properties.VariableNames(idx) = cellfun(@(i) ['mu_sun_',i], vars, 'uniform', 0);
-        mu.Properties.VariableNames(idx + 1) = cellfun(@(i) ['mu_shade_',i], vars, 'uniform', 0);
-
-        sd = zeros(size(stdSun) .* [1 2]);
-        sd(:,idx) = stdSun;
-        sd(:,idx + 1) = stdShade;
-        sd = array2table(sd);
-        sd.Properties.VariableNames(idx) = cellfun(@(i) ['sd_sun_',i], vars, 'uniform', 0);
-        sd.Properties.VariableNames(idx + 1) = cellfun(@(i) ['sd_shade_',i], vars, 'uniform', 0);
-
-        num = zeros(size(stdSun) .* [1 2]);
-        num(:,idx) = nSun;
-        num(:,idx + 1) = nShade;
-        num = array2table(num);
-        num.Properties.VariableNames(idx) = cellfun(@(i) ['num_sun_',i], vars, 'uniform', 0);
-        num.Properties.VariableNames(idx + 1) = cellfun(@(i) ['num_shade_',i], vars, 'uniform', 0);
-
-        p = array2table(p);
-        p.Properties.VariableNames = cellfun(@(i) ['p_',i], vars, 'uniform', 0);
-
-        h = cell2mat(h);
-        h = array2table(h);
-        h.Properties.VariableNames = cellfun(@(i) ['h_',i], vars, 'uniform', 0);
-
-        summary = [array2table(selectedSp), mu, sd, num, p, h];
-        writetable(summary, [stat_dir 'mean_std_ttest.xlsx'], 'WriteRowNames',true);
-        
-        close all
+    if do_error_bars
+        compute_and_save_errorbars(T, barplot_dir);
+%         nSun = cell2mat(cellfun(@(t) sum(~isnan(table2array(t(:,varSel))), 1), ...
+%             selectedTSun, 'uniform', 0));
+%         nShade = cell2mat(cellfun(@(t) sum(~isnan(table2array(t(:,varSel))), 1), ...
+%             selectedTShade, 'uniform', 0));
+% 
+%         meanSun = cell2mat(cellfun(@(t) nanmean(table2array(t(:,varSel)), 1), ...
+%             selectedTSun, 'uniform', 0));
+%         meanShade = cell2mat(cellfun(@(t) nanmean(table2array(t(:,varSel)), 1), ...
+%             selectedTShade, 'uniform', 0));
+% 
+%         stdSun = cell2mat(cellfun(@(t) nanstd(table2array(t(:,varSel)), 0, 1), ...
+%             selectedTSun, 'uniform', 0));
+%         stdShade = cell2mat(cellfun(@(t) nanstd(table2array(t(:,varSel)), 0, 1), ...
+%             selectedTShade, 'uniform', 0));
+%         
+%         % sort by group
+%         %sortIdx = 1:numel(selectedSpGroup);
+%         [~,sortIdx] = sort(selectedSpGroup);
+%         selectedSp = selectedSp(sortIdx);
+%         meanSun = meanSun(sortIdx,:);
+%         meanShade = meanShade(sortIdx,:);
+%         stdSun = stdSun(sortIdx,:);
+%         stdShade = stdShade(sortIdx,:);
+%         nSun = nSun(sortIdx,:);
+%         nShade = nShade(sortIdx,:);
+% 
+%         [h,p] = cellfun(@(u,h) ttest2(table2array(u(:,varSel)),table2array(h(:,varSel))), ...
+%             selectedTSun(sortIdx), selectedTShade(sortIdx), 'uniform', 0);
+%         p = cell2mat(p);
+%         labels = cell(size(p));
+%         labels(p < 0.05) = {'\textbf{*}'};
+%         labels(p < 0.01) = {'\textbf{**}'};
+%         labels(p < 0.001) = {'\textbf{***}'};
+%         
+%         for i = 1:size(meanSun,2)
+%             x_labels = arrayfun(@(sp,l) [l{1} '\textsf{' char(sp) '}'], ...
+%                 selectedSp, labels(:,i), 'uniform', 0);
+%             errbarplot([meanSun(:,i) meanShade(:,i)], ...
+%                 [stdSun(:,i) stdShade(:,i)], ...
+%                 names{i}, x_labels);
+%             saveFigure([barplot_dir vars{i}], [600 400], '-dsvg');
+%         end
+% 
+%         idx = (1:size(meanSun,2)) * 2 - 1;
+% 
+%         mu = zeros(size(meanSun) .* [1 2]);
+%         mu(:,idx) = meanSun;
+%         mu(:,idx + 1) = meanShade;
+%         mu = array2table(mu);
+%         mu.Properties.VariableNames(idx) = cellfun(@(i) ['mu_sun_',i], vars, 'uniform', 0);
+%         mu.Properties.VariableNames(idx + 1) = cellfun(@(i) ['mu_shade_',i], vars, 'uniform', 0);
+% 
+%         sd = zeros(size(stdSun) .* [1 2]);
+%         sd(:,idx) = stdSun;
+%         sd(:,idx + 1) = stdShade;
+%         sd = array2table(sd);
+%         sd.Properties.VariableNames(idx) = cellfun(@(i) ['sd_sun_',i], vars, 'uniform', 0);
+%         sd.Properties.VariableNames(idx + 1) = cellfun(@(i) ['sd_shade_',i], vars, 'uniform', 0);
+% 
+%         num = zeros(size(stdSun) .* [1 2]);
+%         num(:,idx) = nSun;
+%         num(:,idx + 1) = nShade;
+%         num = array2table(num);
+%         num.Properties.VariableNames(idx) = cellfun(@(i) ['num_sun_',i], vars, 'uniform', 0);
+%         num.Properties.VariableNames(idx + 1) = cellfun(@(i) ['num_shade_',i], vars, 'uniform', 0);
+% 
+%         p = array2table(p);
+%         p.Properties.VariableNames = cellfun(@(i) ['p_',i], vars, 'uniform', 0);
+% 
+%         h = cell2mat(h);
+%         h = array2table(h);
+%         h.Properties.VariableNames = cellfun(@(i) ['h_',i], vars, 'uniform', 0);
+% 
+%         summary = [array2table(selectedSp), mu, sd, num, p, h];
+%         writetable(summary, [stat_dir 'mean_std_ttest.xlsx'], 'WriteRowNames',true);
+%         
+%         close all
     end
     
     %% PERFORM ANOVA per trait
     
-    if 0
-        AV = cellfun(@(trait) anova(fitlm(selectedT, [trait ' ~ sp * sun_shade'])), ...
-            vars, 'uniform', 0);
-        
-%         selectedT = selectedT(selectedT.GroupHscon ~= '', :);
-%         AV = cellfun(@(trait) anova(fitlm(selectedT, [trait ' ~ GroupHscon * sun_shade'])), ...
-%             vars, 'uniform', 0);
-
-        for i = 1:numel(AV)
-            trait = vars{i};
-            AV{i}.Properties.RowNames = cellfun(@(name) [trait '-' name], ...
-                AV{i}.Properties.RowNames, 'uniform', 0); 
-        end
-
-        AV = AV';
-        AV = vertcat(AV{:});
-
-        %AV = [cell2table(AV.Properties.RowNames) AV];
-        try
-            writetable(AV, [stat_dir 'anova.xlsx'], 'WriteRowNames',true);
-        catch
-            warning('Could not save anova.xlsx.');
-        end
+    if do_anova
+        compute_and_save_anovas(T, stat_dir);
     end
     
     %% PERFORM ANCOVA
@@ -254,9 +249,124 @@ function basic
     end
 end
 
-function B = sortmat(A, sortIdx)
-    B = A(:,sortIdx);
-    B = B(sortIdx,:);
+function compute_and_save_errorbars(T, output_dir)
+    global vars names
+    
+    T = restrict(T, 3, 3);
+    TSun = T(T.sun_shade == 'sonne',:);
+    TShade = T(T.sun_shade == 'schatten',:);
+    
+    [sp, g] = unique(T.sp);
+    [~, sorti] = sort(T.HsconRang(g));
+    sp = sp(sorti);
+    group = T.GroupHscon(g);
+    group = group(sorti);
+    
+    TSunBySp = arrayfun(@(s) TSun(TSun.sp == s,vars), sp, 'uniform', 0);
+    TShadeBySp = arrayfun(@(s) TShade(TShade.sp == s,vars), sp, 'uniform', 0);
+    
+    [~, p] = cellfun(@(sun, shade) ttest2(table2array(sun(:,vars)), ...
+                                          table2array(shade(:,vars))), ...
+                      TSunBySp, TShadeBySp, 'uniform', 0);
+    TMeanSun = cellfun(@(t) nanmean(table2array(t(:,vars)), 1), TSunBySp, 'uniform', 0);
+    TMeanShade = cellfun(@(t) nanmean(table2array(t(:,vars)), 1), TShadeBySp, 'uniform', 0);
+    TStdSun = cellfun(@(t) nanstd(table2array(t(:,vars)), 1), TSunBySp, 'uniform', 0);
+    TStdShade = cellfun(@(t) nanstd(table2array(t(:,vars)), 1), TShadeBySp, 'uniform', 0);
+    
+    p = cell2mat(p);
+    TMeanSun = cell2mat(TMeanSun);
+    TMeanShade = cell2mat(TMeanShade);
+    TStdSun = cell2mat(TStdSun);
+    TStdShade = cell2mat(TStdShade);
+                  
+    labels = cell(size(p));
+    labels(p < 0.05) = {'\textbf{*}'};
+    labels(p < 0.01) = {'\textbf{**}'};
+    labels(p < 0.001) = {'\textbf{***}'};
+    
+    [X, Y] = meshgrid(1:numel(vars), 1:numel(sp));
+    x_labels = arrayfun(@(x, y) [labels{y,x} char(sp(y))], X, Y, 'uniform', 0);
+    y_labels = names;
+    
+    for i = 1:numel(y_labels)
+        errbarplot([TMeanSun(:,i) TMeanShade(:,i)], ...
+            [TStdSun(:,i) TStdShade(:,i)], ...
+            y_labels{i}, x_labels(:,i), group);
+        saveFigure([output_dir vars{i}], [600 400], '-dsvg');
+    end
+end
+
+function compute_and_save_anovas(T, output_dir)
+    global vars
+    %%
+    T = restrict(T, 3, 3);
+    T = T(T.GroupHscon ~= '', :);
+    
+    models = cellfun(@(trait) [trait ' ~ sp * sun_shade'], vars, 'uniform', 0);
+    AV = compute_anova(T, models);
+    save_anova(AV, [output_dir 'ANOVA trait - sp x sun_shade.xlsx']);
+    
+    %%
+    groups = categorical(string(T.sp) + string(T.sun_shade));
+    meanT = tablemean(T, vars, groups);
+    
+    models = cellfun(@(trait) [trait ' ~ GroupHscon * sun_shade'], vars, 'uniform', 0);
+    AV = compute_anova(meanT, models);
+    save_anova(AV, [output_dir 'ANOVA MEAN trait - GroupHscon x sun_shade.xlsx']);
+end
+
+function AV = compute_anova(T, model_functions)
+    AV = cellfun(@(model) anova(fitlm(T, model)), model_functions, 'uniform', 0);
+    
+    for i = 1:numel(AV)
+        split = strsplit(model_functions{i}, '~');
+        trait = strtrim(split{1});
+        AV{i}.Properties.RowNames = cellfun(@(name) [trait '-' name], ...
+            AV{i}.Properties.RowNames, 'uniform', 0); 
+    end
+
+    AV = AV';
+    AV = vertcat(AV{:});
+end
+
+function save_anova(AV, filename)
+    try
+        writetable(AV, filename, 'WriteRowNames',true);
+    catch
+        warning('Could not save anova.xlsx.');
+    end
+end
+
+function R = restrict(T, minSunSamples, minShadeSamples)
+    uniqueSp = unique(T.sp);
+    
+    U = arrayfun(@(sp) T(T.sp == sp,:), uniqueSp, 'uniform', 0);
+    TSun = arrayfun(@(sp) T(T.sp == sp & T.sun_shade == 'sonne',:), ...
+        uniqueSp, 'uniform', 0);
+    TShade = arrayfun(@(sp) T(T.sp == sp & T.sun_shade == 'schatten',:), ...
+        uniqueSp, 'uniform', 0);
+    
+    [countSun,~] = cellfun(@size, TSun);
+    [countShade,~] = cellfun(@size, TShade);
+    
+    sel = countSun >= minSunSamples & countShade >= minShadeSamples;
+    R = vertcat(U{sel});
+end
+
+function R = tablemean(T, columns, groups)
+    [~, g, i] = unique(groups);
+    R = T(g, :);
+    tmp = arrayfun(@(j) nanmean(table2array(T(j == i, columns)), 1), ...
+        (1:numel(g))', 'uniform', 0);
+    R(:, columns) = num2cell(vertcat(tmp{:}));
+end
+
+function R = tablestd(T, columns, groups)
+    [~, g, i] = unique(groups);
+    R = T(g, :);
+    tmp = arrayfun(@(j) nanstd(table2array(T(j == i, columns)), 1), ...
+        (1:numel(g))', 'uniform', 0);
+    R(:, columns) = num2cell(vertcat(tmp{:}));
 end
 
 function T = addnames(T, names, vars)
@@ -363,20 +473,48 @@ function saveAllSignificantCorr(TSun, TSunSp, TShade, TShadeSp, CorrSun, CorrSha
     end
 end
 
-function errbarplot(mu, sd, figTitle, xLabels, groupLabels)
+function errbarplot(mu, sd, figTitle, xLabels, group)
     global light_green dark_green
+    
+    xticks = 1:numel(xLabels);
+    g = unique(group, 'stable');
+    groupX = zeros(size(g)); %// central value of each group
+    for i = 1:numel(g)
+        ticks = xticks(group == g(i)) + (i - 1);
+        xticks(group == g(i)) = ticks;
+        groupX(i) = mean(ticks);
+    end
+    
     figure;
-    hBar = barwitherr(sd, mu);
-    set(hBar(2), 'FaceColor', light_green);
-    set(hBar(1), 'FaceColor', dark_green);
+    hBar = barwitherr(sd, xticks, mu);
+    set(hBar(1), 'FaceColor', light_green);
+    set(hBar(2), 'FaceColor', dark_green);
     title(figTitle, 'Interpreter', 'latex', 'FontSize', 14);
     legend('Sun', 'Shade');
     ax = gca;
-    ax.XLim = [0.25 numel(xLabels)+0.75];
-    ax.XTick = 1:numel(xLabels);
+    ax.XLim = [0.25 max(xticks)+0.75];
+    ax.XTick = xticks;
     ax.XTickLabels = xLabels;
     ax.XTickLabelRotation = 45;
     ax.TickLabelInterpreter = 'latex';
+    ax.Position = [0.07, 0.16, 0.89, 0.75];
+    
+    %// Add groups
+    yl = ax.YLim;
+    groupY = -0.23*(yl(2)-yl(1))+yl(1); %// vertical position of texts. Adjust as needed
+    deltaX = -1;
+    deltaY = .03; %// controls vertical compression of axis. Adjust as needed
+    for i = 1:numel(groupX)
+        h = text(groupX(i), groupY, char(g(i)), 'Fontsize', 11, 'Interpreter', 'latex');
+        pos = get(h, 'Position');
+        ext = get(h, 'Extent');
+        pos(1) = pos(1) - ext(3)/2 + deltaX; %// horizontally correct position to make it centered
+        set(h, 'Position', pos); %// set corrected position for text
+    end
+    pos = get(gca, 'position');
+    pos(2) = pos(2) + deltaY; %// vertically compress axis to make room for texts
+    set(gca, 'Position', pos); %/ set corrected position for axis
+    
     mi = min(mu(:));
     ma = max(mu(:));
     d = ma - mi;
