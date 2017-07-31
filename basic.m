@@ -43,9 +43,9 @@ function basic(do_correlation, do_scatter_plots, do_error_bars, do_anova)
         '$d~15N/14N$', '$d~13C/12C$', 'N ($\%$)', 'C ($\%$)', 'PARsat', ...
         'ETR1500 ($\mu$mol $m^{-2}~s^{-1}$)', 'H\"ohenzuwachs ($cm/year$)', ...
         'Initial Slope'};
-    varSel = ismember(T.Properties.VariableNames, vars);
+%     varSel = ismember(T.Properties.VariableNames, vars);
     
-    U = arrayfun(@(sp) T(T.sp == sp,:), uniqueSp, 'uniform', 0);
+%     U = arrayfun(@(sp) T(T.sp == sp,:), uniqueSp, 'uniform', 0);
     TSun = arrayfun(@(sp) T(T.sp == sp & T.sun_shade == 'sonne',:), ...
         uniqueSp, 'uniform', 0);
     TShade = arrayfun(@(sp) T(T.sp == sp & T.sun_shade == 'schatten',:), ...
@@ -55,12 +55,12 @@ function basic(do_correlation, do_scatter_plots, do_error_bars, do_anova)
     [countShade,~] = cellfun(@size, TShade);
     
     sel = countSun >= 0 & countShade >= 0;
-    selectedT = restrict(T, 0, 0);
-    selectedSp = uniqueSp(sel);
-    selectedSpGroup = T.HsconRang(uniqueIdx);
-    selectedSpGroup = selectedSpGroup(sel);
-    selectedSpHzuwachs = T.Hzuwachs(uniqueIdx);
-    selectedSpHzuwachs = selectedSpHzuwachs(sel);
+%     selectedT = restrict(T, 0, 0);
+%     selectedSp = uniqueSp(sel);
+%     selectedSpGroup = T.HsconRang(uniqueIdx);
+%     selectedSpGroup = selectedSpGroup(sel);
+%     selectedSpHzuwachs = T.Hzuwachs(uniqueIdx);
+%     selectedSpHzuwachs = selectedSpHzuwachs(sel);
     selectedTSun = TSun(sel);
     selectedTShade = TShade(sel);
     
@@ -69,8 +69,8 @@ function basic(do_correlation, do_scatter_plots, do_error_bars, do_anova)
     meanTSun = vertcat(meanTSun{:});
     meanTShade = vertcat(meanTShade{:});
     
-    selTSun = vertcat(selectedTSun{:});
-    selTShade = vertcat(selectedTShade{:});
+%     selTSun = vertcat(selectedTSun{:});
+%     selTShade = vertcat(selectedTShade{:});
     
     %% PEARSON CORRELATION COEFFICIENTS
     
@@ -121,48 +121,6 @@ function basic(do_correlation, do_scatter_plots, do_error_bars, do_anova)
     
     if do_error_bars
         compute_and_save_errorbars(T, barplot_dir);
-%         nSun = cell2mat(cellfun(@(t) sum(~isnan(table2array(t(:,varSel))), 1), ...
-%             selectedTSun, 'uniform', 0));
-%         nShade = cell2mat(cellfun(@(t) sum(~isnan(table2array(t(:,varSel))), 1), ...
-%             selectedTShade, 'uniform', 0));
-% 
-%         meanSun = cell2mat(cellfun(@(t) nanmean(table2array(t(:,varSel)), 1), ...
-%             selectedTSun, 'uniform', 0));
-%         meanShade = cell2mat(cellfun(@(t) nanmean(table2array(t(:,varSel)), 1), ...
-%             selectedTShade, 'uniform', 0));
-% 
-%         stdSun = cell2mat(cellfun(@(t) nanstd(table2array(t(:,varSel)), 0, 1), ...
-%             selectedTSun, 'uniform', 0));
-%         stdShade = cell2mat(cellfun(@(t) nanstd(table2array(t(:,varSel)), 0, 1), ...
-%             selectedTShade, 'uniform', 0));
-%         
-%         % sort by group
-%         %sortIdx = 1:numel(selectedSpGroup);
-%         [~,sortIdx] = sort(selectedSpGroup);
-%         selectedSp = selectedSp(sortIdx);
-%         meanSun = meanSun(sortIdx,:);
-%         meanShade = meanShade(sortIdx,:);
-%         stdSun = stdSun(sortIdx,:);
-%         stdShade = stdShade(sortIdx,:);
-%         nSun = nSun(sortIdx,:);
-%         nShade = nShade(sortIdx,:);
-% 
-%         [h,p] = cellfun(@(u,h) ttest2(table2array(u(:,varSel)),table2array(h(:,varSel))), ...
-%             selectedTSun(sortIdx), selectedTShade(sortIdx), 'uniform', 0);
-%         p = cell2mat(p);
-%         labels = cell(size(p));
-%         labels(p < 0.05) = {'\textbf{*}'};
-%         labels(p < 0.01) = {'\textbf{**}'};
-%         labels(p < 0.001) = {'\textbf{***}'};
-%         
-%         for i = 1:size(meanSun,2)
-%             x_labels = arrayfun(@(sp,l) [l{1} '\textsf{' char(sp) '}'], ...
-%                 selectedSp, labels(:,i), 'uniform', 0);
-%             errbarplot([meanSun(:,i) meanShade(:,i)], ...
-%                 [stdSun(:,i) stdShade(:,i)], ...
-%                 names{i}, x_labels);
-%             saveFigure([barplot_dir vars{i}], [600 400], '-dsvg');
-%         end
 % 
 %         idx = (1:size(meanSun,2)) * 2 - 1;
 % 
@@ -361,13 +319,13 @@ function R = tablemean(T, columns, groups)
     R(:, columns) = num2cell(vertcat(tmp{:}));
 end
 
-function R = tablestd(T, columns, groups)
-    [~, g, i] = unique(groups);
-    R = T(g, :);
-    tmp = arrayfun(@(j) nanstd(table2array(T(j == i, columns)), 1), ...
-        (1:numel(g))', 'uniform', 0);
-    R(:, columns) = num2cell(vertcat(tmp{:}));
-end
+% function R = tablestd(T, columns, groups)
+%     [~, g, i] = unique(groups);
+%     R = T(g, :);
+%     tmp = arrayfun(@(j) nanstd(table2array(T(j == i, columns)), 1), ...
+%         (1:numel(g))', 'uniform', 0);
+%     R(:, columns) = num2cell(vertcat(tmp{:}));
+% end
 
 function T = addnames(T, names, vars)
     T.Properties.VariableNames = vars;
@@ -416,32 +374,32 @@ function scatterCompare(X1, Y1, G1, p1, r1, X2, Y2, G2, p2, r2, nameX, nameY, pv
     hold off;
 end
 
-function plotandsavematrix(T, names)
-    [~,AX] = plotmatrix(table2array(T));
-    vars = T.Properties.VariableNames;
-    if nargin < 2
-        names = vars;
-    end
-    [Y,X] = meshgrid(1:numel(vars));
-    for xy = [X(:) Y(:)]'
-        x = xy(1);
-        y = xy(2);
-        if x ~= y
-            h = lsline(AX(x,y));
-            set(h(1),'color','r');
-        end
-        if y == 1
-            xlabel(AX(y,x),names{x}, 'Interpreter', 'latex', 'FontSize', 8);
-            set(AX(y,x),'xaxislocation','top');
-        end
-        if x == numel(vars)
-            ylabel(AX(y,x),names{y}, 'Interpreter', 'latex', 'FontSize', 8);
-            set(AX(y,x),'yaxislocation','right');
-        end
-        AX(y,x).TickLabelInterpreter = 'latex';
-    end
-    
-end
+% function plotandsavematrix(T, names)
+%     [~,AX] = plotmatrix(table2array(T));
+%     vars = T.Properties.VariableNames;
+%     if nargin < 2
+%         names = vars;
+%     end
+%     [Y,X] = meshgrid(1:numel(vars));
+%     for xy = [X(:) Y(:)]'
+%         x = xy(1);
+%         y = xy(2);
+%         if x ~= y
+%             h = lsline(AX(x,y));
+%             set(h(1),'color','r');
+%         end
+%         if y == 1
+%             xlabel(AX(y,x),names{x}, 'Interpreter', 'latex', 'FontSize', 8);
+%             set(AX(y,x),'xaxislocation','top');
+%         end
+%         if x == numel(vars)
+%             ylabel(AX(y,x),names{y}, 'Interpreter', 'latex', 'FontSize', 8);
+%             set(AX(y,x),'yaxislocation','right');
+%         end
+%         AX(y,x).TickLabelInterpreter = 'latex';
+%     end
+%     
+% end
 
 function saveFigure(filename, pagesize, format)
     fig = gcf;
@@ -498,23 +456,7 @@ function errbarplot(mu, sd, figTitle, xLabels, group)
     ax.XTickLabelRotation = 45;
     ax.TickLabelInterpreter = 'latex';
     ax.Position = [0.07, 0.16, 0.89, 0.75];
-    
-    %// Add groups
-    yl = ax.YLim;
-    groupY = -0.23*(yl(2)-yl(1))+yl(1); %// vertical position of texts. Adjust as needed
-    deltaX = -1;
-    deltaY = .03; %// controls vertical compression of axis. Adjust as needed
-    for i = 1:numel(groupX)
-        h = text(groupX(i), groupY, char(g(i)), 'Fontsize', 11, 'Interpreter', 'latex');
-        pos = get(h, 'Position');
-        ext = get(h, 'Extent');
-        pos(1) = pos(1) - ext(3)/2 + deltaX; %// horizontally correct position to make it centered
-        set(h, 'Position', pos); %// set corrected position for text
-    end
-    pos = get(gca, 'position');
-    pos(2) = pos(2) + deltaY; %// vertically compress axis to make room for texts
-    set(gca, 'Position', pos); %/ set corrected position for axis
-    
+        
     mi = min(mu(:));
     ma = max(mu(:));
     d = ma - mi;
@@ -524,4 +466,21 @@ function errbarplot(mu, sd, figTitle, xLabels, group)
         offset = (ma - mi)*0.2;
         ax.YLim = [mi-offset ma+offset];
     end
+    
+    %// Add groups
+    yl = ax.YLim;
+    groupY = -0.23*(yl(2)-yl(1))+yl(1); %// vertical position of texts. Adjust as needed
+    deltaX = -0.1;
+    deltaY = .03; %// controls vertical compression of axis. Adjust as needed
+    for i = 1:numel(groupX)
+        h = text(groupX(i), groupY, char(g(i)), 'Fontsize', 13, 'Interpreter', 'latex');
+        pos = get(h, 'Position');
+        ext = get(h, 'Extent');
+        pos(1) = pos(1) - ext(3)/2 + deltaX; %// horizontally correct position to make it centered
+        set(h, 'Position', pos); %// set corrected position for text
+    end
+    pos = get(gca, 'position');
+    pos(2) = pos(2) + deltaY; %// vertically compress axis to make room for texts
+    set(gca, 'Position', pos); %/ set corrected position for axis
+
 end
