@@ -4,10 +4,10 @@ function basic(do_correlation, do_scatter_plots, do_error_bars, do_anova)
         do_correlation = false;
     end
     if nargin < 2
-        do_scatter_plots = false;
+        do_scatter_plots = true;
     end
     if nargin < 3
-        do_error_bars = true;
+        do_error_bars = false;
     end
     if nargin < 4
         do_anova = false;
@@ -38,9 +38,9 @@ function basic(do_correlation, do_scatter_plots, do_error_bars, do_anova)
     vars = {'Blattdicke_mm', 'Chlorophyll', 'Reissfestigkeit_N', ...
         'DW_FW', 'SLA', 'Stomatadichte', 'd15N14N', 'd13C12C', ...
         'N', 'C', 'PARsat', 'ETR_1500', 'Hzuwachs', 'init_slope'};
-    names = {'Blattdicke ($mm$)', 'Chlorophyll (SPAD)', 'Reissfestigkeit ($N$)', ...
+    names = {'Blattdicke ($mm$)', 'Chlorophyll (SPAD)', 'Rei{\ss}festigkeit ($N$)', ...
         'LDMC ($mg/g$)', 'SLA  ($mm^2/mg$)', 'Stomatadichte ($n/mm^2$)', ...
-        '$d~15N/14N$', '$d~13C/12C$', 'N ($\%$)', 'C ($\%$)', 'PARsat', ...
+        '$\delta^{15}N$', '$\delta^{13}C$', 'Stickstoffgehalt ($\%$)', 'Kohlenstoffgehalt ($\%$)', 'PAR$_{sat}$', ...
         'ETR1500 ($\mu$mol $m^{-2}~s^{-1}$)', 'H\"ohenzuwachs ($cm/year$)', ...
         'Initial Slope'};
 %     varSel = ismember(T.Properties.VariableNames, vars);
@@ -74,7 +74,7 @@ function basic(do_correlation, do_scatter_plots, do_error_bars, do_anova)
     
     %% PEARSON CORRELATION COEFFICIENTS
     
-    if do_correlation
+    if do_correlation || do_scatter_plots
 %         TSun = table2array(selTSun(:,vars));
         TSun = meanTSun;
         [X,Y] = meshgrid(1:numel(vars));
@@ -91,8 +91,10 @@ function basic(do_correlation, do_scatter_plots, do_error_bars, do_anova)
         CorrShade = RShade;
         CorrShade(TF) = PShade(TF);
         CorrShade = addnames(array2table(CorrShade), names, vars);
-        writetable(CorrSun, [stat_dir 'Corr.xlsx'], 'WriteRowNames',true, 'Sheet', 'Sun');
-        writetable(CorrShade, [stat_dir 'Corr.xlsx'], 'WriteRowNames',true, 'Sheet', 'Shade');
+        if do_correlation
+            writetable(CorrSun, [stat_dir 'Corr.xlsx'], 'WriteRowNames',true, 'Sheet', 'Sun');
+            writetable(CorrShade, [stat_dir 'Corr.xlsx'], 'WriteRowNames',true, 'Sheet', 'Shade');
+        end
     end
     
     %% SCATTER PLOT COMPARISONS
@@ -154,8 +156,7 @@ function basic(do_correlation, do_scatter_plots, do_error_bars, do_anova)
 % 
 %         summary = [array2table(selectedSp), mu, sd, num, p, h];
 %         writetable(summary, [stat_dir 'mean_std_ttest.xlsx'], 'WriteRowNames',true);
-%         
-%         close all
+        close all
     end
     
     %% PERFORM ANOVA per trait
@@ -418,15 +419,21 @@ function saveAllSignificantCorr(TSun, TSunSp, TShade, TShadeSp, CorrSun, CorrSha
         shade_p = CShade(i(2), i(1));
         shade_r = CShade(i(1), i(2));
         if sun_p <= pvalue || shade_p <= pvalue
-            nameX = CorrSun.Properties.RowNames{i(1)};
-            nameY = CorrSun.Properties.RowNames{i(2)};
-            varX = CorrSun.Properties.VariableNames{i(1)};
-            varY = CorrSun.Properties.VariableNames{i(2)};
+            x = 2;
+            y = 1;
+            nameX = CorrSun.Properties.RowNames{i(x)};
+            nameY = CorrSun.Properties.RowNames{i(y)};
+            varX = CorrSun.Properties.VariableNames{i(x)};
+            varY = CorrSun.Properties.VariableNames{i(y)};
+            sunX = TSun(:,i(x));
+            sunY = TSun(:,i(y));
+            shadeX = TShade(:,i(x));
+            shadeY = TShade(:,i(y));
             scatterCompare(...
-                TSun(:,i(1)), TSun(:,i(2)), TSunSp, sun_p, sun_r, ...
-                TShade(:,i(1)), TShade(:,i(2)), TShadeSp, shade_p, shade_r, ...
+                sunX, sunY, TSunSp, sun_p, sun_r, ...
+                shadeX, shadeY, TShadeSp, shade_p, shade_r, ...
                 nameX, nameY, pvalue);
-            saveFigure([dir varX '-' varY], [400 400], '-dsvg');
+            saveFigure([dir varX '-' varY], [800 800], '-dsvg');
         end
     end
 end
